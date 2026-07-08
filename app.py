@@ -445,7 +445,15 @@ def seed_db():
 def session_status():
     return '', 200
 
-
+@app.route('/admin/migrate')
+def migrate_db():
+    try:
+        from flask_migrate import upgrade
+        upgrade()
+        return "✅ Database migrated successfully!"
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+    
 # ---------- Main ----------
 if __name__ == '__main__':
     # Production के लिए debug=False और port environment से

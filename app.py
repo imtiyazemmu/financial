@@ -453,6 +453,48 @@ def migrate_db():
         return "✅ Database migrated successfully!"
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
+
+@app.route('/migrate')
+def migrate_db():
+    try:
+        from flask_migrate import upgrade
+        upgrade()
+        return "✅ Database migrated successfully! Tables created."
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+@app.route('/seed')
+def seed_db_route():
+    try:
+        from werkzeug.security import generate_password_hash
+        # Create admin user if not exists
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', password=generate_password_hash('admin123'))
+            db.session.add(admin)
+        
+        # Create category if not exists
+        if not Category.query.first():
+            cat = Category(name='Personal Finance', slug='personal-finance')
+            db.session.add(cat)
+            db.session.commit()
+            
+            # Create demo post
+            post = Post(
+                title='बजट कैसे बनाएं?',
+                slug='budget-kaise-banaye',
+                content='<p>यह आपका पहला ब्लॉग पोस्ट है। यहाँ पूरा आर्टिकल आएगा।</p>',
+                meta_title='बजट बनाने का सही तरीका | Personal Finance',
+                meta_description='घर का बजट बनाना सीखें और पैसे बचाएं।',
+                category_id=cat.id,
+                status='published'
+            )
+            db.session.add(post)
+        
+        db.session.commit()
+        return "✅ Seed completed! Admin (admin/admin123) and demo post created."
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
     
 # ---------- Main ----------
 if __name__ == '__main__':

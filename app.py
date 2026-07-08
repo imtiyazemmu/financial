@@ -445,16 +445,7 @@ def seed_db():
 def session_status():
     return '', 200
 
-@app.route('/admin/migrate')
-def migrate_db():
-    try:
-        from flask_migrate import upgrade
-        upgrade()
-        return "✅ Database migrated successfully!"
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
-
-
+# ---------- Temporary Routes for Database Migration (Production) ----------
 @app.route('/migrate')
 def migrate_db():
     try:
@@ -468,10 +459,12 @@ def migrate_db():
 def seed_db_route():
     try:
         from werkzeug.security import generate_password_hash
+        
         # Create admin user if not exists
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', password=generate_password_hash('admin123'))
             db.session.add(admin)
+            db.session.commit()
         
         # Create category if not exists
         if not Category.query.first():
@@ -490,8 +483,8 @@ def seed_db_route():
                 status='published'
             )
             db.session.add(post)
+            db.session.commit()
         
-        db.session.commit()
         return "✅ Seed completed! Admin (admin/admin123) and demo post created."
     except Exception as e:
         return f"❌ Error: {str(e)}"

@@ -373,15 +373,23 @@ def admin_settings():
 def admin_upload():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
+    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+    
     if file and allowed_file(file.filename):
         try:
-            result = cloudinary.uploader.upload(file, folder='financial_blog')
+            # ✅ Unsigned Upload – सिर्फ upload_preset की ज़रूरत है
+            result = cloudinary.uploader.upload(
+                file,
+                folder='financial_blog',
+                upload_preset='financial_blog'  # ← यह आपका Upload Preset Name है
+            )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+    
     return jsonify({'error': 'Invalid file type'}), 400
 
 

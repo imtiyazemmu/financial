@@ -14,7 +14,11 @@ export default async function Home() {
   const posts = await getAllPosts();
   const featuredPosts = posts.slice(0, 3);
   const remainingPosts = posts.slice(3);
-  const categories = Array.from(new Set(posts.map(p => p.category).filter(Boolean)));
+
+  // ✅ Type-Safe Categories – Fix for null/undefined
+  const categories = Array.from(new Set(
+    posts.map(p => p.category).filter((c): c is string => c !== null && c !== undefined)
+  ));
 
   return (
     <>

@@ -47,22 +47,22 @@ export default async function RootLayout({
   const settings = await getSettings().catch(() => ({}));
   const headerAd = settings?.ads_header || "";
   const footerAd = settings?.ads_footer || "";
-  const adsenseVerification = settings?.adsense_verification || "";
+  
+  // ✅ AdSense Verification Code – पहले Admin Settings से, नहीं तो Hardcoded
+  const adsenseVerification = settings?.adsense_verification || "ca-pub-2115676103932727";
 
   return (
     <html lang="hi" className={`${inter.variable} antialiased`}>
       <body className="bg-white text-gray-900 min-h-screen flex flex-col">
-        {/* ✅ AdSense – अगर Verification Code है तो */}
-        {adsenseVerification && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseVerification}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
+        {/* ✅ AdSense Script – Dynamic या Hardcoded */}
+        <Script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseVerification}`}
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
 
-        {/* Header Ad – Top */}
+        {/* Header Ad – Top (अगर Admin में डाला है तो) */}
         {headerAd && (
           <div
             className="max-w-7xl mx-auto px-4 py-2 text-center text-sm text-gray-500"
@@ -70,10 +70,10 @@ export default async function RootLayout({
           />
         )}
 
-        {/* Main Content – बच्चे components यहाँ आएँगे */}
+        {/* Main Content */}
         <main className="flex-grow">{children}</main>
 
-        {/* Footer Ad – Bottom */}
+        {/* Footer Ad – Bottom (अगर Admin में डाला है तो) */}
         {footerAd && (
           <div
             className="max-w-7xl mx-auto px-4 py-2 text-center text-sm text-gray-500 border-t border-gray-100"

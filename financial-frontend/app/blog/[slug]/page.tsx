@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import ShareButtons from '@/components/ShareButtons';
 import { getImageUrl } from '@/lib/utils';
 
-// Helpers (same as before)
+// ---------- Helpers ----------
 function getReadingTime(content: string) {
   const text = content.replace(/<[^>]+>/g, ' ');
   const words = text.split(/\s+/).filter(Boolean).length;
@@ -52,7 +52,6 @@ function BlogContentClient({ content }: { content: string }) {
       </div>
 
       <div className="blog-content" dangerouslySetInnerHTML={{ __html: content }} />
-
       <ShareButtons />
 
       <style>{`
@@ -74,12 +73,14 @@ function BlogContentClient({ content }: { content: string }) {
   );
 }
 
-// SEO Metadata
+// ---------- SEO Metadata ----------
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) return { title: 'Post Not Found' };
-  const plainDesc = post.meta_description ? post.meta_description.replace(/<[^>]+>/g, '') : post.content.replace(/<[^>]+>/g, '').substring(0, 155);
+  const plainDesc = post.meta_description
+    ? post.meta_description.replace(/<[^>]+>/g, '')
+    : post.content.replace(/<[^>]+>/g, '').substring(0, 155);
   return {
     title: post.meta_title || post.title,
     description: plainDesc,
@@ -99,43 +100,56 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-// ISR
+// ---------- ISR ----------
 export async function generateStaticParams() {
   const posts = await getAllPosts();
   return posts.map((post) => ({ slug: post.slug }));
 }
 
-// Main Component
+// ---------- Main Component ----------
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center"><h1 className="text-4xl font-bold text-gray-800">404</h1><p className="text-gray-600 mt-2">Post not found</p></div>
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-800">404</h1>
+          <p className="text-gray-600 mt-2">Post not found</p>
+        </div>
       </div>
     );
   }
 
-  // Related Posts
-  let relatedPosts: Awaited<ReturnType<typeof getPostBySlug>>[] = [];
+  // ---------- Related Posts (Type-Safe) ----------
+  type PostType = NonNullable<Awaited<ReturnType<typeof getPostBySlug>>>;
+  let relatedPosts: PostType[] = [];
   if (post.category) {
     const allPosts = await getAllPosts();
-    relatedPosts = allPosts.filter(p => p.category === post.category && p.id !== post.id).slice(0, 3);
+    // ✅ यह Type Guard null/undefined को हटाता है और TypeScript को बताता है कि अब p safe है
+    const isPost = (p: any): p is PostType => p !== null && p !== undefined;
+    relatedPosts = allPosts
+      .filter(isPost)
+      .filter(p => p.category === post.category && p.id !== post.id)
+      .slice(0, 3);
   }
 
-  // JSON-LD
-  const featuredImageUrl = post.featured_image ? getImageUrl(post.featured_image) : 'https://via.placeholder.com/800x400';
+  // ---------- JSON-LD ----------
+  const featuredImageUrl = post.featured_image
+    ? getImageUrl(post.featured_image)
+    : 'https://via.placeholder.com/800x400';
   const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": post.title,
-    "description": post.meta_description ? post.meta_description.replace(/<[^>]+>/g, '') : post.content.replace(/<[^>]+>/g, '').substring(0, 155),
-    "image": featuredImageUrl,
-    "author": { "@type": "Person", "name": "Financial Expert" },
-    "datePublished": post.created_at,
-    "dateModified": post.created_at,
-    "publisher": { "@type": "Organization", "name": "FinanceTips" }
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.meta_description
+      ? post.meta_description.replace(/<[^>]+>/g, '')
+      : post.content.replace(/<[^>]+>/g, '').substring(0, 155),
+    image: featuredImageUrl,
+    author: { '@type': 'Person', name: 'Financial Expert' },
+    datePublished: post.created_at,
+    dateModified: post.created_at,
+    publisher: { '@type': 'Organization', name: 'FinanceTips' },
   };
 
   return (
@@ -143,7 +157,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
       <Header />
       <main className="min-h-screen bg-white">
         <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
 
           {/* Breadcrumb */}
           <nav className="text-sm text-gray-500 mb-4">
@@ -182,14 +199,20 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* Related Posts */}
+          {/* Related Posts (अब कोई TypeScript Error नहीं) */}
           {relatedPosts.length > 0 && (
             <div className="mt-12">
               <h3 className="text-xl font-bold text-gray-800 mb-4">You May Also Like</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {relatedPosts.map(p => (
-                  <Link href={`/blog/${p.slug}`} key={p.id} className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition border border-gray-100">
-                    <h4 className="font-semibold text-blue-700 hover:underline line-clamp-2">{p.title}</h4>
+                {relatedPosts.map((p) => (
+                  <Link
+                    href={`/blog/${p.slug}`}
+                    key={p.id}
+                    className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition border border-gray-100"
+                  >
+                    <h4 className="font-semibold text-blue-700 hover:underline line-clamp-2">
+                      {p.title}
+                    </h4>
                     <p className="text-xs text-gray-400 mt-1">{p.created_at}</p>
                   </Link>
                 ))}

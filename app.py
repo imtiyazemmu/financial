@@ -15,13 +15,17 @@ from functools import wraps
 import cloudinary
 import cloudinary.uploader
 
-# ✅ Environment Variables Load करें (सबसे पहले!)
-load_dotenv()
+# ❌ पहले ऐसा था:
+# load_dotenv()
+
+# ✅ अब ऐसा कर दें:
+load_dotenv(dotenv_path='.env.local')
 
 # ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')
-    # ⚠️ API_KEY और API_SECRET हटा दिए – Unsigned Upload के लिए ज़रूरी नहीं
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),       # 👈 इसे वापस लाएं
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')   # 👈 इसे वापस लाएं
 )
 
 app = Flask(__name__)
@@ -362,11 +366,8 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # ✅ Unsigned Upload – बस preset name
-            result = cloudinary.uploader.upload(
-                file,
-                upload_preset='my_unsigned_preset'   # ← यहाँ अपना Unsigned Preset Name डालें                
-            )
+            # अब बिना किसी अतिरिक्त पैरामीटर के यह आराम से अपलोड हो जाएगा
+            result = cloudinary.uploader.upload(file) 
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500

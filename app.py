@@ -15,11 +15,8 @@ from functools import wraps
 import cloudinary
 import cloudinary.uploader
 
-# ❌ पहले ऐसा था:
-# load_dotenv()
-
-# ✅ अब ऐसा कर दें:
-load_dotenv(dotenv_path='.env.local')
+# ✅ Environment Variables Load करें (सबसे पहले!)
+load_dotenv()
 
 # ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
 cloudinary.config(
@@ -366,8 +363,11 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # अब बिना किसी अतिरिक्त पैरामीटर के यह आराम से अपलोड हो जाएगा
-            result = cloudinary.uploader.upload(file) 
+            # ✅ Unsigned Upload – बस preset name
+            result = cloudinary.uploader.upload(
+                file,
+                upload_preset='my_unsigned_preset'   # ← यहाँ अपना Unsigned Preset Name डालें                
+            )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500

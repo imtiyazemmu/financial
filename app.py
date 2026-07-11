@@ -365,8 +365,7 @@ def admin_upload():
             # ✅ Unsigned Upload – बस preset name
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='blog_unsigned'   # ← यहाँ अपना Unsigned Preset Name डालें
-                unsigned=True
+                upload_preset='my_unsigned_preset'   # ← यहाँ अपना Unsigned Preset Name डालें                
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:

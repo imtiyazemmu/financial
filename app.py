@@ -349,7 +349,6 @@ def admin_settings():
     settings_dict = {s.key: s.value for s in settings}
     return render_template('admin/settings.html', settings=settings_dict)
 
-
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
@@ -360,10 +359,10 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # ✅ सही Unsigned Preset का उपयोग करें
+            # ✅ Unsigned Upload – बस preset name
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='blog_unsigned'   # ← यहाँ बदलाव किया
+                upload_preset='blog_unsigned'   # ← यह आपका Unsigned Preset है
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:

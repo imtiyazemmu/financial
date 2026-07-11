@@ -363,7 +363,7 @@ def admin_settings():
     return render_template('admin/settings.html', settings=settings_dict)
 
 
-# ✅ Cloudinary Upload – Unsigned Upload Preset (No Signature Needed)
+# ✅ Cloudinary Upload – Unsigned Upload Preset (No unSignature Needed)
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
@@ -376,11 +376,10 @@ def admin_upload():
     
     if file and allowed_file(file.filename):
         try:
-            # ✅ Unsigned Upload – बस upload_preset की ज़रूरत है
+            # ✅ SIMPLE UNSIGNED UPLOAD – No signature, no timestamp, no folder param here
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='financial_blog',  # ← यह आपका Unsigned Preset है
-                folder='financial_blog'          # ← Optional: Cloudinary Folder
+                upload_preset='my_unsigned_preset'  # ← Use your NEW preset name!
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:

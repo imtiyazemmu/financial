@@ -379,7 +379,7 @@ def admin_upload():
             # ✅ SIMPLE UNSIGNED UPLOAD – No signature, no timestamp, no folder param here
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='blog_unsigned'  # ← नया Preset
+                upload_preset='blog_unsigned'  # ← Your new preset name
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:

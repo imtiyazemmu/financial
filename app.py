@@ -18,11 +18,10 @@ import cloudinary.uploader
 # ✅ Environment Variables Load करें (सबसे पहले!)
 load_dotenv()
 
-# ✅ Cloudinary Configuration (Environment Variables से)
+# ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')
+    # ⚠️ API_KEY और API_SECRET हटा दिए – Unsigned Upload के लिए ज़रूरी नहीं
 )
 
 app = Flask(__name__)
@@ -45,7 +44,7 @@ if cors_origins != '*':
     cors_origins = cors_origins.split(',')
 CORS(app, origins=cors_origins)
 
-# ✅ Upload Folder (अब यह Fallback के लिए है, Cloudinary Primary होगा)
+# ✅ Upload Folder (Fallback के लिए)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
@@ -117,12 +116,10 @@ def login_required(f):
 def get_posts():
     category_slug = request.args.get('category')
     query = Post.query.filter_by(status='published')
-    
     if category_slug:
         category = Category.query.filter_by(slug=category_slug).first()
         if category:
             query = query.filter_by(category_id=category.id)
-    
     posts = query.order_by(Post.created_at.desc()).all()
     return jsonify([{
         'id': p.id,
@@ -221,14 +218,12 @@ def admin_new_post():
         featured_image = request.form.get('featured_image', '')
         category_id = request.form.get('category_id')
         slug = request.form.get('slug', '').strip()
-        
         if not slug:
             slug = generate_unique_slug(title)
         else:
             if Post.query.filter_by(slug=slug).first():
                 flash('❌ यह Slug (URL) पहले से मौजूद है, कृपया कोई दूसरा डालें।', 'danger')
                 return render_template('admin/post_form.html', categories=categories, post=None)
-        
         try:
             post = Post(
                 title=title,
@@ -247,7 +242,6 @@ def admin_new_post():
             db.session.rollback()
             flash(f'❌ डेटाबेस में सेव करते समय एरर: {str(e)}', 'danger')
             return render_template('admin/post_form.html', categories=categories, post=None)
-    
     return render_template('admin/post_form.html', categories=categories, post=None)
 
 
@@ -264,7 +258,6 @@ def admin_edit_post(id):
         meta_description = request.form.get('meta_description', '')
         featured_image = request.form.get('featured_image', '')
         category_id = request.form.get('category_id')
-        
         if not slug:
             slug = generate_unique_slug(title)
         else:
@@ -272,7 +265,6 @@ def admin_edit_post(id):
             if existing and existing.id != id:
                 flash('❌ यह Slug (URL) किसी दूसरी पोस्ट में पहले से मौजूद है!', 'danger')
                 return render_template('admin/post_form.html', categories=categories, post=post)
-        
         post.title = title
         post.slug = slug
         post.content = content
@@ -280,7 +272,6 @@ def admin_edit_post(id):
         post.meta_description = meta_description
         post.featured_image = featured_image
         post.category_id = category_id if category_id else None
-        
         try:
             db.session.commit()
             flash('✅ पोस्ट अपडेट हो गई!', 'success')
@@ -288,7 +279,6 @@ def admin_edit_post(id):
         except Exception as e:
             db.session.rollback()
             flash(f'❌ अपडेट करते समय एरर: {str(e)}', 'danger')
-    
     return render_template('admin/post_form.html', categories=categories, post=post)
 
 
@@ -323,7 +313,6 @@ def admin_bulk_action():
     if not post_ids:
         flash('❌ कोई पोस्ट सिलेक्ट नहीं की गई!', 'danger')
         return redirect(url_for('admin_dashboard'))
-    
     if action == 'delete':
         Post.query.filter(Post.id.in_(post_ids)).delete(synchronize_session=False)
         db.session.commit()
@@ -357,34 +346,30 @@ def admin_settings():
         db.session.commit()
         flash('✅ सेटिंग्स सफलतापूर्वक सेव हो गईं!', 'success')
         return redirect(url_for('admin_settings'))
-    
     settings = Setting.query.all()
     settings_dict = {s.key: s.value for s in settings}
     return render_template('admin/settings.html', settings=settings_dict)
 
 
-# ✅ Cloudinary Upload – Unsigned Upload Preset (No unSignature Needed)
+# ✅ Cloudinary Upload – **पूरी तरह Unsigned** (बिना Signature)
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
     if file and allowed_file(file.filename):
         try:
-            # ✅ SIMPLE UNSIGNED UPLOAD – No signature, no timestamp, no folder param here
+            # ✅ Unsigned Upload – बस preset name
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='blog_unsigned'  # ← Your new preset name
+                upload_preset='blog_unsigned'   # ← यहाँ अपना Unsigned Preset Name डालें
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-    
     return jsonify({'error': 'Invalid file type'}), 400
 
 
@@ -407,7 +392,6 @@ def admin_export():
         'created_at': p.created_at.isoformat(),
         'updated_at': p.updated_at.isoformat()
     } for p in posts]
-
     if format_type == 'csv':
         si = StringIO()
         if data:
@@ -428,12 +412,10 @@ def seed_db():
         admin = User(username='admin', password=generate_password_hash('admin123'))
         db.session.add(admin)
         print("✅ एडमिन बन गया (Username: admin, Password: admin123)")
-
     if not Category.query.first():
         cat = Category(name='Personal Finance', slug='personal-finance')
         db.session.add(cat)
         db.session.commit()
-        
         post = Post(
             title='बजट कैसे बनाएं?',
             slug='budget-kaise-banaye',

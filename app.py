@@ -19,10 +19,10 @@ import cloudinary.uploader
 load_dotenv()
 
 # ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
+# ✅ Cloudinary Configuration – Only cloud_name needed for unsigned uploads
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')    
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')
 )
-
 app = Flask(__name__)
 
 # ✅ Database Configuration – PostgreSQL Support
@@ -349,6 +349,9 @@ def admin_settings():
     settings_dict = {s.key: s.value for s in settings}
     return render_template('admin/settings.html', settings=settings_dict)
 
+import requests
+import time
+
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
@@ -359,12 +362,26 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # ✅ Unsigned Upload – बस preset name
-            result = cloudinary.uploader.upload(
-                file,
-                upload_preset='blog_unsigned'   # ← यह आपका Unsigned Preset है
-            )
-            return jsonify({'location': result['secure_url']}), 200
+            # ✅ Direct unsigned upload to Cloudinary API
+            cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+            upload_url = f'https://api.cloudinary.com/v1_1/{cloud_name}/upload'
+            
+            # Prepare the request
+            files = {
+                'file': (file.filename, file.stream, file.content_type)
+            }
+            data = {
+                'upload_preset': 'blog_unsigned'  # Your unsigned preset
+            }
+            
+            response = requests.post(upload_url, files=files, data=data)
+            response_data = response.json()
+            
+            if response.status_code == 200:
+                return jsonify({'location': response_data['secure_url']}), 200
+            else:
+                return jsonify({'error': response_data.get('error', {}).get('message', 'Upload failed')}), 500
+                
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     return jsonify({'error': 'Invalid file type'}), 400

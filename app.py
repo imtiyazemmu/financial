@@ -15,22 +15,21 @@ from functools import wraps
 import cloudinary
 import cloudinary.uploader
 
-# Cloudinary Configuration
+# ✅ Environment Variables Load करें (सबसे पहले!)
+load_dotenv()
+
+# ✅ Cloudinary Configuration (Environment Variables से)
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
     api_key=os.getenv('CLOUDINARY_API_KEY'),
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
-# ✅ Environment Variables Load करें
-load_dotenv()
-
 app = Flask(__name__)
 
 # ✅ Database Configuration – PostgreSQL Support
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
-    # Render पर postgres:// को postgresql:// में बदलें
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///blog.db'
@@ -40,13 +39,13 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'my-super-secret-key-12345')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# ✅ CORS – Production में Origins को सीमित कर सकते हैं
+# ✅ CORS
 cors_origins = os.getenv('CORS_ORIGINS', '*')
 if cors_origins != '*':
     cors_origins = cors_origins.split(',')
 CORS(app, origins=cors_origins)
 
-# ✅ Upload Folder – Absolute Path
+# ✅ Upload Folder (अब यह Fallback के लिए है, Cloudinary Primary होगा)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
@@ -75,7 +74,7 @@ class Post(db.Model):
     meta_title = db.Column(db.String(200))
     meta_description = db.Column(db.String(300))
     featured_image = db.Column(db.String(300))
-    status = db.Column(db.String(20), default='draft')  # 'draft' या 'published'
+    status = db.Column(db.String(20), default='draft')
     views = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -113,12 +112,11 @@ def login_required(f):
     return decorated_function
 
 
-# ---------- API Routes (Frontend के लिए) ----------
+# ---------- API Routes ----------
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
-    """सभी published पोस्ट्स की लिस्ट (category filter के साथ)"""
     category_slug = request.args.get('category')
-    query = Post.query.filter_by(status='published')  # ✅ सिर्फ published
+    query = Post.query.filter_by(status='published')
     
     if category_slug:
         category = Category.query.filter_by(slug=category_slug).first()
@@ -141,7 +139,6 @@ def get_posts():
 
 @app.route('/api/posts/<slug>', methods=['GET'])
 def get_post(slug):
-    """एक पोस्ट का पूरा विवरण (सिर्फ published)"""
     post = Post.query.filter_by(slug=slug, status='published').first()
     if not post:
         return jsonify({'error': 'Post not found'}), 404
@@ -159,7 +156,6 @@ def get_post(slug):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
-    """सभी कैटेगरी की लिस्ट"""
     categories = Category.query.all()
     return jsonify([{
         'id': c.id,
@@ -170,7 +166,6 @@ def get_categories():
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    """सभी सेटिंग्स (AdSense codes etc.)"""
     settings = Setting.query.all()
     return jsonify({s.key: s.value for s in settings})
 
@@ -368,6 +363,7 @@ def admin_settings():
     return render_template('admin/settings.html', settings=settings_dict)
 
 
+# ✅ Cloudinary Upload – Unsigned Upload Preset (No Signature Needed)
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
@@ -380,11 +376,11 @@ def admin_upload():
     
     if file and allowed_file(file.filename):
         try:
-            # ✅ Unsigned Upload – सिर्फ upload_preset की ज़रूरत है
+            # ✅ Unsigned Upload – बस upload_preset की ज़रूरत है
             result = cloudinary.uploader.upload(
                 file,
-                folder='financial_blog',
-                upload_preset='financial_blog'  # ← यह आपका Upload Preset Name है
+                upload_preset='financial_blog',  # ← यह आपका Unsigned Preset है
+                folder='financial_blog'          # ← Optional: Cloudinary Folder
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:
@@ -458,52 +454,8 @@ def seed_db():
 def session_status():
     return '', 200
 
-# # ---------- Temporary Routes for Database Migration (Production) ----------
-# @app.route('/migrate')
-# def migrate_db():
-#     try:
-#         from flask_migrate import upgrade
-#         upgrade()
-#         return "✅ Database migrated successfully! Tables created."
-#     except Exception as e:
-#         return f"❌ Error: {str(e)}"
 
-# @app.route('/seed')
-# def seed_db_route():
-#     try:
-#         from werkzeug.security import generate_password_hash
-        
-#         # Create admin user if not exists
-#         if not User.query.filter_by(username='admin').first():
-#             admin = User(username='admin', password=generate_password_hash('admin123'))
-#             db.session.add(admin)
-#             db.session.commit()
-        
-#         # Create category if not exists
-#         if not Category.query.first():
-#             cat = Category(name='Personal Finance', slug='personal-finance')
-#             db.session.add(cat)
-#             db.session.commit()
-            
-#             # Create demo post
-#             post = Post(
-#                 title='बजट कैसे बनाएं?',
-#                 slug='budget-kaise-banaye',
-#                 content='<p>यह आपका पहला ब्लॉग पोस्ट है। यहाँ पूरा आर्टिकल आएगा।</p>',
-#                 meta_title='बजट बनाने का सही तरीका | Personal Finance',
-#                 meta_description='घर का बजट बनाना सीखें और पैसे बचाएं।',
-#                 category_id=cat.id,
-#                 status='published'
-#             )
-#             db.session.add(post)
-#             db.session.commit()
-        
-#         return "✅ Seed completed! Admin (admin/admin123) and demo post created."
-#     except Exception as e:
-#         return f"❌ Error: {str(e)}"
-    
 # ---------- Main ----------
 if __name__ == '__main__':
-    # Production के लिए debug=False और port environment से
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=debug_mode, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))

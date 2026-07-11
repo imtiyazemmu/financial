@@ -20,9 +20,7 @@ load_dotenv()
 
 # ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
 cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),       # 👈 इसे वापस लाएं
-    api_secret=os.getenv('CLOUDINARY_API_SECRET')   # 👈 इसे वापस लाएं
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')    
 )
 
 app = Flask(__name__)
@@ -352,7 +350,6 @@ def admin_settings():
     return render_template('admin/settings.html', settings=settings_dict)
 
 
-# ✅ Cloudinary Upload – **पूरी तरह Unsigned** (बिना Signature)
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
@@ -363,10 +360,10 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # ✅ Unsigned Upload – बस preset name
+            # ✅ सही Unsigned Preset का उपयोग करें
             result = cloudinary.uploader.upload(
                 file,
-                upload_preset='my_unsigned_preset'   # ← यहाँ अपना Unsigned Preset Name डालें                
+                upload_preset='blog_unsigned'   # ← यहाँ बदलाव किया
             )
             return jsonify({'location': result['secure_url']}), 200
         except Exception as e:

@@ -1,5 +1,6 @@
 import { getPostBySlug, getAllPosts } from '@/lib/api';
 import Link from 'next/link';
+import Image from 'next/image'; // ✅ Import Image
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ShareButtons from '@/components/ShareButtons';
@@ -171,13 +172,20 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             <span className="text-gray-700 font-medium">{post.title}</span>
           </nav>
 
+          {/* ✅ Optimized Image with next/image */}
           {post.featured_image && (
-            <img
-              src={getImageUrl(post.featured_image)}
-              alt={post.title}
-              className="w-full h-64 md:h-80 object-cover rounded-lg shadow-sm mb-6"
-            />
+            <div className="relative w-full h-64 md:h-80 mb-6">
+              <Image
+                src={getImageUrl(post.featured_image)}
+                alt={post.title}
+                fill
+                priority={true} // ✅ मुख्य इमेज को Priority दें (LCP)
+                className="object-cover rounded-lg shadow-sm"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            </div>
           )}
+
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">{post.title}</h1>
 
           <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500 border-b pb-4">
@@ -199,7 +207,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* Related Posts (अब कोई TypeScript Error नहीं) */}
+          {/* Related Posts */}
           {relatedPosts.length > 0 && (
             <div className="mt-12">
               <h3 className="text-xl font-bold text-gray-800 mb-4">You May Also Like</h3>

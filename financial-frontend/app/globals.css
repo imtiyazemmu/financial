@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Root Variables – Light & Dark Mode */
+/* ✅ Root Variables – Light & Dark Mode */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -19,7 +19,7 @@
   --color-accent: var(--accent);
 }
 
-/* Dark Mode Preferences */
+/* ✅ Dark Mode Preferences */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -30,7 +30,7 @@
   }
 }
 
-/* Base Styles */
+/* ✅ Base Styles – Optimized */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -40,19 +40,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Utilities – इन्हें Tailwind के साथ Use कर सकते हैं */
-@layer utilities {
-  /* Smooth Scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
+/* ✅ Font Optimization – FCP Improvement */
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
 
-  /* Gradient Border (जैसे Footer में use किया है) */
+/* ✅ HTML Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ✅ Custom Utilities */
+@layer utilities {
+  /* Gradient Border */
   .border-image-gradient {
     border-image: linear-gradient(to right, var(--primary), var(--secondary)) 1;
   }
 
-  /* Glassmorphism Base */
+  /* Glassmorphism */
   .glass {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(8px);
@@ -67,7 +73,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Line Clamp (अगर Tailwind v4 में नहीं है तो ये utility बना देता है) */
+  /* Line Clamp */
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -84,55 +90,11 @@ body {
     text-overflow: ellipsis;
   }
 
-  /* Gradient Text (Direct Utility) */
+  /* Gradient Text */
   .text-gradient {
     background: linear-gradient(to right, var(--primary), var(--secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-}
-
-/* ✅ अगर आपको Tailwind v4 में @utility का use करना है तो:
-   @utility line-clamp-2 {
-     display: -webkit-box;
-     -webkit-line-clamp: 2;
-     -webkit-box-orient: vertical;
-     overflow: hidden;
-     text-overflow: ellipsis;
-   }
-   लेकिन ऊपर @layer utilities का तरीका भी चलेगा।
-*/
-
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-/* Utility for line-clamp (if not built-in) */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }

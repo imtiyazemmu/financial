@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PostShareButtons from '@/components/PostShareButtons';
 import { getImageUrl } from '@/lib/utils';
+import Image from 'next/image';
 
 export const metadata = {
   title: 'FinanceTips – Personal Finance, Govt Schemes & Banking Guides',
@@ -63,12 +64,16 @@ export default async function Home() {
               {featuredPosts.map((post, index) => (
                 <article key={post.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition border border-gray-100 overflow-hidden">
                   <Link href={`/blog/${post.slug}`} className="block">
-                    <div className="h-48 overflow-hidden bg-gray-100">
+                    <div className="h-48 overflow-hidden bg-gray-100 relative">
                       {post.featured_image ? (
-                        <img
+                        <Image
                           src={getImageUrl(post.featured_image)}
                           alt={post.title}
+                          width={800}
+                          height={400}
+                          priority={index === 0} // ✅ पहली इमेज को Priority दें (LCP)
                           className="w-full h-full object-cover hover:scale-105 transition duration-300"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-4xl">📊</div>
@@ -107,12 +112,15 @@ export default async function Home() {
             {remainingPosts.map((post) => (
               <article key={post.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition border border-gray-100 overflow-hidden">
                 <Link href={`/blog/${post.slug}`} className="block">
-                  <div className="h-40 overflow-hidden bg-gray-100">
+                  <div className="h-40 overflow-hidden bg-gray-100 relative">
                     {post.featured_image ? (
-                      <img
+                      <Image
                         src={getImageUrl(post.featured_image)}
                         alt={post.title}
+                        width={400}
+                        height={200}
                         className="w-full h-full object-cover hover:scale-105 transition duration-300"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">📈</div>

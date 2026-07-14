@@ -19,6 +19,7 @@ export default function ShareButtons() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    // ✅ Client-side only – no hydration mismatch
     setUrl(window.location.href);
     setTitle(document.title);
   }, []);
@@ -86,15 +87,17 @@ export default function ShareButtons() {
 
   return (
     <div className="mt-8 pt-4 border-t border-gray-200">
-      <p className="text-sm font-medium text-gray-700 mb-3">Share this article:</p>
-      <div className="flex flex-wrap gap-3">
+      <p className="text-sm font-medium text-gray-700 mb-3" id="share-label">
+        Share this article:
+      </p>
+      <div className="flex flex-wrap gap-3" role="group" aria-labelledby="share-label">
         {shareData.map(({ name, icon: Icon, color, href }) => (
           <a
             key={name}
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${color} text-white p-2 rounded-full transition-transform duration-200 hover:scale-110 shadow-md`}
+            className={`${color} text-white p-2 rounded-full transition-transform duration-200 hover:scale-110 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
             aria-label={`Share on ${name}`}
             title={name}
           >
@@ -104,13 +107,18 @@ export default function ShareButtons() {
         {/* Copy Link Button */}
         <button
           onClick={handleCopyLink}
-          className="bg-gray-800 hover:bg-gray-900 text-white p-2 rounded-full transition-transform duration-200 hover:scale-110 shadow-md relative"
-          aria-label="Copy link"
+          className="bg-gray-800 hover:bg-gray-900 text-white p-2 rounded-full transition-transform duration-200 hover:scale-110 shadow-md relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          aria-label="Copy link to clipboard"
           title="Copy link"
+          aria-live="polite"
         >
           <FaLink size={20} />
           {copied && (
-            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+            <span
+              className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               Copied!
             </span>
           )}

@@ -14,18 +14,20 @@ from dotenv import load_dotenv
 from functools import wraps
 import cloudinary
 import cloudinary.uploader
+import requests
+import time
 
-# ✅ Environment Variables Load करें (सबसे पहले!)
+# ✅ Environment Variables Load करें
 load_dotenv()
 
-# ✅ Cloudinary Configuration – **Unsigned Mode** (सिर्फ cloud_name चाहिए)
-# ✅ Cloudinary Configuration – Only cloud_name needed for unsigned uploads
+# ✅ Cloudinary Configuration – Unsigned Mode
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME')
 )
+
 app = Flask(__name__)
 
-# ✅ Database Configuration – PostgreSQL Support
+# ✅ Database Configuration
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -43,7 +45,7 @@ if cors_origins != '*':
     cors_origins = cors_origins.split(',')
 CORS(app, origins=cors_origins)
 
-# ✅ Upload Folder (Fallback के लिए)
+# ✅ Upload Folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
@@ -84,6 +86,17 @@ class Setting(db.Model):
     key = db.Column(db.String(100), unique=True, nullable=False)
     value = db.Column(db.Text, nullable=True)
     description = db.Column(db.String(200))
+
+# ✅ NEW: Comment Model
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+    post = db.relationship('Post', backref=db.backref('comments', lazy='dynamic', cascade='all, delete-orphan'))
+    author_name = db.Column(db.String(100), nullable=False)
+    author_email = db.Column(db.String(100), nullable=True)
+    content = db.Column(db.Text, nullable=False)
+    is_approved = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 # ---------- Helper Functions ----------
@@ -164,6 +177,51 @@ def get_categories():
 def get_settings():
     settings = Setting.query.all()
     return jsonify({s.key: s.value for s in settings})
+
+
+# ---------- Comments API ----------
+@app.route('/api/posts/<slug>/comments', methods=['GET'])
+def get_comments(slug):
+    """Get all approved comments for a post"""
+    post = Post.query.filter_by(slug=slug).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    comments = Comment.query.filter_by(post_id=post.id, is_approved=True).order_by(Comment.created_at.asc()).all()
+    return jsonify([{
+        'id': c.id,
+        'author_name': c.author_name,
+        'content': c.content,
+        'created_at': c.created_at.strftime('%d %b, %Y')
+    } for c in comments])
+
+
+@app.route('/api/posts/<slug>/comments', methods=['POST'])
+def add_comment(slug):
+    """Add a new comment (pending approval)"""
+    post = Post.query.filter_by(slug=slug).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    data = request.get_json()
+    author_name = data.get('author_name', '').strip()
+    author_email = data.get('author_email', '').strip()
+    content = data.get('content', '').strip()
+    
+    if not author_name or not content:
+        return jsonify({'error': 'Name and Comment are required'}), 400
+    
+    comment = Comment(
+        post_id=post.id,
+        author_name=author_name,
+        author_email=author_email,
+        content=content,
+        is_approved=False
+    )
+    db.session.add(comment)
+    db.session.commit()
+    
+    return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
 
 
 # ---------- Admin Panel Routes ----------
@@ -349,8 +407,6 @@ def admin_settings():
     settings_dict = {s.key: s.value for s in settings}
     return render_template('admin/settings.html', settings=settings_dict)
 
-import requests
-import time
 
 @app.route('/admin/upload', methods=['POST'])
 @login_required
@@ -362,16 +418,14 @@ def admin_upload():
         return jsonify({'error': 'No selected file'}), 400
     if file and allowed_file(file.filename):
         try:
-            # ✅ Direct unsigned upload to Cloudinary API
             cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
             upload_url = f'https://api.cloudinary.com/v1_1/{cloud_name}/upload'
             
-            # Prepare the request
             files = {
                 'file': (file.filename, file.stream, file.content_type)
             }
             data = {
-                'upload_preset': 'blog_unsigned'  # Your unsigned preset
+                'upload_preset': 'blog_unsigned'
             }
             
             response = requests.post(upload_url, files=files, data=data)
@@ -381,7 +435,6 @@ def admin_upload():
                 return jsonify({'location': response_data['secure_url']}), 200
             else:
                 return jsonify({'error': response_data.get('error', {}).get('message', 'Upload failed')}), 500
-                
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     return jsonify({'error': 'Invalid file type'}), 400
@@ -417,6 +470,46 @@ def admin_export():
                         headers={'Content-Disposition': 'attachment; filename=posts_export.csv'})
     else:
         return jsonify(data)
+
+
+# ---------- TEMPORARY MIGRATION ROUTES (Render Free Tier के लिए) ----------
+@app.route('/migrate')
+def migrate_db():
+    try:
+        from flask_migrate import upgrade
+        upgrade()
+        return "✅ Database migrated successfully! Tables created."
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
+
+@app.route('/seed')
+def seed_db_route():
+    try:
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', password=generate_password_hash('admin123'))
+            db.session.add(admin)
+            db.session.commit()
+        
+        if not Category.query.first():
+            cat = Category(name='Personal Finance', slug='personal-finance')
+            db.session.add(cat)
+            db.session.commit()
+            
+            post = Post(
+                title='बजट कैसे बनाएं?',
+                slug='budget-kaise-banaye',
+                content='<p>यह आपका पहला ब्लॉग पोस्ट है। यहाँ पूरा आर्टिकल आएगा।</p>',
+                meta_title='बजट बनाने का सही तरीका | Personal Finance',
+                meta_description='घर का बजट बनाना सीखें और पैसे बचाएं।',
+                category_id=cat.id,
+                status='published'
+            )
+            db.session.add(post)
+            db.session.commit()
+        
+        return "✅ Seed completed! Admin (admin/admin123) and demo post created."
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
 
 # ---------- Database Seeding (CLI Command) ----------

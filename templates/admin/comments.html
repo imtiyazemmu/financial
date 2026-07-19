@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Comments</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand">💬 Manage Comments</span>
+            <a href="/admin" class="btn btn-outline-light">⬅ Back to Dashboard</a>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message | safe }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <h3 class="mb-3">All Comments</h3>
+
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Post</th>
+                    <th>Author</th>
+                    <th>Comment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in comments %}
+                <tr>
+                    <td>{{ c.id }}</td>
+                    <td>{{ c.post.title[:30] }}{% if c.post.title|length > 30 %}...{% endif %}</td>
+                    <td>{{ c.author_name }}</td>
+                    <td>
+                        {{ c.content[:60] }}{% if c.content|length > 60 %}...{% endif %}
+                        {% if c.reply %}
+                            <br><small class="text-success"><strong>🗣️ Reply:</strong> {{ c.reply[:50] }}...</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.is_approved %}
+                            <span class="badge bg-success">Approved</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <!-- Approve Button -->
+                        {% if not c.is_approved %}
+                        <form method="POST" action="/admin/comments/{{ c.id }}/approve" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success">✅ Approve</button>
+                        </form>
+                        {% endif %}
+                        <!-- Reply Button -->
+                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#replyModal{{ c.id }}">💬 Reply</button>
+                        <!-- Delete Button -->
+                        <form method="POST" action="/admin/comments/{{ c.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this comment?')">
+                            <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                <!-- Reply Modal -->
+                <div class="modal fade" id="replyModal{{ c.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="/admin/comments/{{ c.id }}/reply">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Reply to {{ c.author_name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label><strong>Original Comment:</strong></label>
+                                        <p class="bg-light p-2 rounded">{{ c.content }}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label><strong>Your Reply:</strong></label>
+                                        <textarea name="reply" class="form-control" rows="3" placeholder="Write your reply..." required></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-primary">Post Reply</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if comments|length == 0 %}
+            <div class="text-center py-4"><p class="text-muted">No comments yet.</p></div>
+        {% endif %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

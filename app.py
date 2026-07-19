@@ -634,13 +634,15 @@ def seed_db():
 @app.route('/admin/comments')
 @login_required
 def admin_comments():
-    # सारे Comments लाएं (सबसे नए पहले)
+    """Admin panel to manage all comments"""
+    # सारे Comments लाओ (सबसे नए पहले)
     comments = Comment.query.order_by(Comment.created_at.desc()).all()
     return render_template('admin/comments.html', comments=comments)
 
 @app.route('/admin/comments/<int:id>/approve', methods=['POST'])
 @login_required
 def admin_approve_comment(id):
+    """Approve a comment"""
     comment = Comment.query.get_or_404(id)
     comment.is_approved = True
     db.session.commit()
@@ -650,6 +652,7 @@ def admin_approve_comment(id):
 @app.route('/admin/comments/<int:id>/delete', methods=['POST'])
 @login_required
 def admin_delete_comment(id):
+    """Delete a comment"""
     comment = Comment.query.get_or_404(id)
     db.session.delete(comment)
     db.session.commit()
@@ -659,11 +662,12 @@ def admin_delete_comment(id):
 @app.route('/admin/comments/<int:id>/reply', methods=['POST'])
 @login_required
 def admin_reply_comment(id):
+    """Reply to a comment"""
     comment = Comment.query.get_or_404(id)
     reply_text = request.form.get('reply', '').strip()
     if reply_text:
         comment.reply = reply_text
-        # अगर comment pending है तो उसे auto-approve कर दें (या न करें, आपकी मर्जी)
+        # अगर comment pending है तो उसे auto-approve कर दें
         if not comment.is_approved:
             comment.is_approved = True
         db.session.commit()

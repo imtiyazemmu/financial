@@ -387,14 +387,26 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
+    # ✅ सारे Posts लाएं
     posts = Post.query.order_by(Post.created_at.desc()).all()
+    
+    # ✅ Comments लाएं (सबसे नए पहले) – Comments Tab के लिए
+    comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    
+    # ✅ Pending Comments Count – Dashboard Card के लिए
+    pending_comments_count = Comment.query.filter_by(is_approved=False).count()
+    
+    # ✅ Stats
     total_posts = Post.query.count()
     draft_posts = Post.query.filter_by(status='draft').count()
     published_posts = Post.query.filter_by(status='published').count()
     total_categories = Category.query.count()
     total_views = db.session.query(db.func.sum(Post.views)).scalar() or 0
+    
     return render_template('admin/index.html',
                            posts=posts,
+                           comments=comments,                           # ✅ नया
+                           pending_comments_count=pending_comments_count, # ✅ नया
                            total_posts=total_posts,
                            draft_posts=draft_posts,
                            published_posts=published_posts,

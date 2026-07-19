@@ -15,6 +15,7 @@
         .clickable-row:hover { background-color: #f8f9fa; }
         #select-all { transform: scale(1.2); }
         .export-btn { margin-left: 10px; }
+        .category-badge { font-size: 0.7rem; margin: 2px; }
     </style>
 </head>
 <body>
@@ -46,10 +47,9 @@
             <div class="col-md-3"><div class="card text-bg-info stats-card"><div class="card-body"><h5 class="card-title">{{ total_views }}</h5><p class="card-text">👁️ Total Views</p></div></div></div>
         </div>
 
-        <!-- Toolbar: Search + Bulk Actions + Add New -->
+        <!-- Toolbar -->
         <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <!-- Bulk Actions Form -->
                 <form method="POST" action="/admin/bulk-action" class="d-flex align-items-center gap-2 bulk-actions" onsubmit="return confirm('Are you sure?')">
                     <input type="hidden" name="action" id="bulk-action-select" value="">
                     <div class="dropdown">
@@ -65,23 +65,15 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Apply</button>
                 </form>
-
-                <!-- Export Button -->
-                <a href="/admin/export?format=json" class="btn btn-success export-btn" target="_blank">
-                    <i class="bi bi-download"></i> Export JSON
-                </a>
-                <a href="/admin/export?format=csv" class="btn btn-info export-btn" target="_blank">
-                    <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
-                </a>
+                <a href="/admin/export?format=json" class="btn btn-success export-btn" target="_blank"><i class="bi bi-download"></i> JSON</a>
+                <a href="/admin/export?format=csv" class="btn btn-info export-btn" target="_blank"><i class="bi bi-file-earmark-spreadsheet"></i> CSV</a>
             </div>
             <div>
-                <a href="/admin/post/new" class="btn btn-success">
-                    <i class="bi bi-plus-circle"></i> New Post
-                </a>
+                <a href="/admin/post/new" class="btn btn-success"><i class="bi bi-plus-circle"></i> New Post</a>
             </div>
         </div>
 
-        <!-- Search Box (Client-side filter) -->
+        <!-- Search -->
         <div class="mb-3">
             <input type="text" id="searchInput" class="form-control search-box" placeholder="🔍 Search posts by title..." onkeyup="filterPosts()">
         </div>
@@ -95,7 +87,7 @@
                         <th>#</th>
                         <th>Title</th>
                         <th>Status</th>
-                        <th>Category</th>
+                        <th>Category</th> <!-- ✅ यहाँ Categories दिखेंगी -->
                         <th>Views</th>
                         <th>Created</th>
                         <th>Actions</th>
@@ -111,12 +103,17 @@
                             <span class="badge badge-status {% if post.status == 'published' %}bg-success{% else %}bg-warning text-dark{% endif %}">
                                 {{ post.status }}
                             </span>
-                            <!-- Quick status toggle via AJAX (optional) -->
-                            <button class="btn btn-sm btn-outline-secondary toggle-status" data-id="{{ post.id }}" data-status="{{ post.status }}" title="Toggle status">
-                                <i class="bi bi-arrow-repeat"></i>
-                            </button>
                         </td>
-                        <td>{{ post.category.name if post.category else 'N/A' }}</td>
+                        <td>
+                            {# ✅ नया: Multiple Categories दिखाएं #}
+                            {% if post.categories %}
+                                {% for cat in post.categories %}
+                                    <span class="badge bg-secondary category-badge">{{ cat.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                         <td>{{ post.views }}</td>
                         <td>{{ post.created_at.strftime('%d-%b-%Y') }}</td>
                         <td class="table-actions">
@@ -129,31 +126,25 @@
             </table>
         </div>
 
-        <!-- If no posts -->
         {% if posts|length == 0 %}
             <div class="text-center py-4"><p class="text-muted">No posts yet. <a href="/admin/post/new">Write your first one!</a></p></div>
         {% endif %}
     </div>
 
-    <!-- Hidden form for bulk actions (used by dropdown) -->
+    <!-- Hidden form for bulk actions -->
     <form id="bulk-form" method="POST" action="/admin/bulk-action"></form>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // ---------- 1. Select All / Deselect All ----------
         function toggleAll() {
             const checkboxes = document.querySelectorAll('.post-checkbox');
             const isChecked = document.getElementById('select-all').checked;
             checkboxes.forEach(cb => cb.checked = isChecked);
         }
-
-        // ---------- 2. Bulk Action from Dropdown ----------
         function setBulkAction(action) {
             document.getElementById('bulk-action-select').value = action;
             document.getElementById('bulk-form').submit();
         }
-
-        // ---------- 3. Search / Filter (client-side) ----------
         function filterPosts() {
             const input = document.getElementById('searchInput');
             const filter = input.value.toLowerCase();
@@ -163,31 +154,6 @@
                 row.style.display = title.includes(filter) ? '' : 'none';
             });
         }
-
-        // ---------- 4. Quick Status Toggle (AJAX) ----------
-        document.querySelectorAll('.toggle-status').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const postId = this.dataset.id;
-                const currentStatus = this.dataset.status;
-                const newStatus = (currentStatus === 'published') ? 'draft' : 'published';
-                if (!confirm(`Change status to "${newStatus}"?`)) return;
-
-                fetch(`/admin/post/${postId}/toggle-status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus })
-                })
-                .then(res => {
-                    if (res.ok) {
-                        location.reload(); // या हम DOM भी बदल सकते हैं
-                    } else {
-                        alert('Error toggling status');
-                    }
-                })
-                .catch(() => alert('Network error'));
-            });
-        });
     </script>
 </body>
 </html>

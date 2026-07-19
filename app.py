@@ -102,6 +102,8 @@ class Comment(db.Model):
     author_email = db.Column(db.String(100), nullable=True)
     content = db.Column(db.Text, nullable=False)
     is_approved = db.Column(db.Boolean, default=False)
+    # ✅ नया फील्ड: Admin का Reply
+    reply = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -231,11 +233,13 @@ def get_comments(slug):
     post = Post.query.filter_by(slug=slug).first()
     if not post:
         return jsonify({'error': 'Post not found'}), 404
+    
     comments = Comment.query.filter_by(post_id=post.id, is_approved=True).order_by(Comment.created_at.asc()).all()
     return jsonify([{
         'id': c.id,
         'author_name': c.author_name,
         'content': c.content,
+        'reply': c.reply,  # ✅ Admin Reply भी भेजें
         'created_at': c.created_at.strftime('%d %b, %Y')
     } for c in comments])
 
@@ -626,6 +630,47 @@ def seed_db():
         db.session.commit()
         print("✅ डमी पोस्ट डाल दी गई!")
 
+# ---------- ADMIN: COMMENTS MANAGEMENT ----------
+@app.route('/admin/comments')
+@login_required
+def admin_comments():
+    # सारे Comments लाएं (सबसे नए पहले)
+    comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    return render_template('admin/comments.html', comments=comments)
+
+@app.route('/admin/comments/<int:id>/approve', methods=['POST'])
+@login_required
+def admin_approve_comment(id):
+    comment = Comment.query.get_or_404(id)
+    comment.is_approved = True
+    db.session.commit()
+    flash('✅ Comment approved successfully!', 'success')
+    return redirect(url_for('admin_comments'))
+
+@app.route('/admin/comments/<int:id>/delete', methods=['POST'])
+@login_required
+def admin_delete_comment(id):
+    comment = Comment.query.get_or_404(id)
+    db.session.delete(comment)
+    db.session.commit()
+    flash('🗑️ Comment deleted!', 'success')
+    return redirect(url_for('admin_comments'))
+
+@app.route('/admin/comments/<int:id>/reply', methods=['POST'])
+@login_required
+def admin_reply_comment(id):
+    comment = Comment.query.get_or_404(id)
+    reply_text = request.form.get('reply', '').strip()
+    if reply_text:
+        comment.reply = reply_text
+        # अगर comment pending है तो उसे auto-approve कर दें (या न करें, आपकी मर्जी)
+        if not comment.is_approved:
+            comment.is_approved = True
+        db.session.commit()
+        flash('💬 Reply posted successfully!', 'success')
+    else:
+        flash('❌ Reply cannot be empty!', 'danger')
+    return redirect(url_for('admin_comments'))
 
 # ---------- Session Status (Health Check) ----------
 @app.route('/session-status')

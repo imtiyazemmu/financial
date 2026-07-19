@@ -387,18 +387,17 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    # ✅ 1. Posts – हमेशा काम करेगा
+    # ✅ 1. Posts
     posts = Post.query.order_by(Post.created_at.desc()).all()
     
-    # ✅ 2. Comments – अगर Column missing है तो भी Dashboard Crash नहीं होगा
+    # ✅ 2. Comments (सुरक्षित रूप से Fetch करें – अगर Table/Column Missing है तो भी Crash नहीं होगा)
     comments = []
     pending_comments_count = 0
     try:
         comments = Comment.query.order_by(Comment.created_at.desc()).all()
         pending_comments_count = Comment.query.filter_by(is_approved=False).count()
     except Exception as e:
-        print(f"⚠️ Comment query error (migration pending?): {e}")
-        # अगर Column missing है, तो बस Empty List भेज दो, Dashboard चलता रहेगा
+        print(f"⚠️ Comment query error: {e}")
         comments = []
         pending_comments_count = 0
     
@@ -411,8 +410,8 @@ def admin_dashboard():
     
     return render_template('admin/index.html',
                            posts=posts,
-                           comments=comments,
-                           pending_comments_count=pending_comments_count,
+                           comments=comments,                           # ✅ Comments List
+                           pending_comments_count=pending_comments_count, # ✅ Pending Count
                            total_posts=total_posts,
                            draft_posts=draft_posts,
                            published_posts=published_posts,

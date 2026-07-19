@@ -264,31 +264,50 @@ def add_comment(slug):
 
 @app.route('/api/comments', methods=['POST'])
 def add_comment_by_id():
-    data = request.get_json()
-    post_id = data.get('post_id')
-    author_name = data.get('author_name', '').strip()
-    author_email = data.get('author_email', '').strip()
-    content = data.get('content', '').strip()
-    
-    if not post_id:
-        return jsonify({'error': 'Post ID required'}), 400
-    if not author_name or not content:
-        return jsonify({'error': 'Name and comment required'}), 400
-    
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({'error': 'Post not found'}), 404
-    
-    comment = Comment(
-        post_id=post.id,
-        author_name=author_name,
-        author_email=author_email,
-        content=content,
-        is_approved=False
-    )
-    db.session.add(comment)
-    db.session.commit()
-    return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
+    try:
+        data = request.get_json()
+        print("🔍 Received comment data:", data)  # ✅ यह Render Logs में दिखेगा
+        
+        # ✅ post_id को Integer में बदलें (भले ही String आए)
+        post_id = data.get('post_id')
+        if post_id is None:
+            return jsonify({'error': 'Post ID is required'}), 400
+        
+        # ✅ इसे Integer में बदलें
+        try:
+            post_id = int(post_id)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid Post ID format'}), 400
+        
+        author_name = data.get('author_name', '').strip()
+        author_email = data.get('author_email', '').strip()
+        content = data.get('content', '').strip()
+        
+        if not author_name or not content:
+            return jsonify({'error': 'Name and comment are required'}), 400
+        
+        # ✅ Database से Post ढूंढें
+        post = Post.query.get(post_id)
+        if not post:
+            print(f"❌ Post with ID {post_id} not found!")  # ✅ Log में डालेगा
+            return jsonify({'error': 'Post not found'}), 404
+        
+        comment = Comment(
+            post_id=post.id,
+            author_name=author_name,
+            author_email=author_email,
+            content=content,
+            is_approved=False
+        )
+        db.session.add(comment)
+        db.session.commit()
+        print(f"✅ Comment added for post ID: {post.id}")  # ✅ Success Log
+        return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
+        
+    except Exception as e:
+        print(f"🔥 Server Error: {str(e)}")  # ✅ कोई और Error आए तो Log में दिखे
+        db.session.rollback()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 # ---------- Admin Panel Routes ----------
 @app.route('/admin/login', methods=['GET', 'POST'])

@@ -129,7 +129,6 @@ def login_required(f):
     return decorated_function
 
 
-# ---------- API Routes ----------
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
     category_slug = request.args.get('category')
@@ -140,6 +139,9 @@ def get_posts():
         if category:
             # ✅ Filter by many-to-many categories
             query = query.filter(Post.categories.contains(category))
+        else:
+            # ✅ अगर Category नहीं मिली, तो कोई Post न लौटाएँ
+            return jsonify([])
     
     posts = query.order_by(Post.created_at.desc()).all()
     return jsonify([{

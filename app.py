@@ -102,8 +102,8 @@ class Comment(db.Model):
     author_email = db.Column(db.String(100), nullable=True)
     content = db.Column(db.Text, nullable=False)
     is_approved = db.Column(db.Boolean, default=False)
-    # ✅ नया फील्ड: Admin का Reply
     reply = db.Column(db.Text, nullable=True)
+    edit_token = db.Column(db.String(100), unique=True, nullable=True)  # ✅ नया
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -167,11 +167,12 @@ def get_post(slug):
     return jsonify({
         'id': post.id,
         'title': post.title,
+        'slug': post.slug,  # ✅ यह Line जोड़ें
         'content': post.content,
         'meta_title': post.meta_title,
         'meta_description': post.meta_description,
         'featured_image': post.featured_image,
-        'categories': [cat.name for cat in post.categories],  # ✅ Array
+        'categories': [cat.name for cat in post.categories],
         'created_at': post.created_at.strftime('%d %b, %Y')
     })
 
@@ -233,17 +234,64 @@ def get_comments(slug):
     post = Post.query.filter_by(slug=slug).first()
     if not post:
         return jsonify({'error': 'Post not found'}), 404
-    
-    comments = Comment.query.filter_by(post_id=post.id, is_approved=True).order_by(Comment.created_at.asc()).all()
+
+    # Approved Comments
+    approved = Comment.query.filter_by(post_id=post.id, is_approved=True).order_by(Comment.created_at.asc()).all()
+
+    # Pending Comments – सिर्फ Token Match होने पर
+    tokens = request.args.get('tokens', '')
+    token_list = [t.strip() for t in tokens.split(',') if t.strip()]
+    pending = []
+    if token_list:
+        pending = Comment.query.filter(
+            Comment.post_id == post.id,
+            Comment.is_approved == False,
+            Comment.edit_token.in_(token_list)
+        ).order_by(Comment.created_at.asc()).all()
+
+    # Merge – Pending पहले, Approved बाद में
+    all_comments = pending + approved
+
     return jsonify([{
         'id': c.id,
         'author_name': c.author_name,
         'content': c.content,
-        'reply': c.reply,  # ✅ Admin Reply भी भेजें
+        'reply': c.reply,
+        'is_approved': c.is_approved,
+        'edit_token': c.edit_token if c.edit_token in token_list else None,
         'created_at': c.created_at.strftime('%d %b, %Y')
-    } for c in comments])
+    } for c in all_comments])
+    
+    
 
+@app.route('/api/comments/<int:id>', methods=['PUT'])
+def edit_comment(id):
+    data = request.get_json()
+    edit_token = data.get('edit_token')
+    new_content = data.get('content', '').strip()
 
+    if not edit_token or not new_content:
+        return jsonify({'error': 'Token and content required'}), 400
+
+    comment = Comment.query.get(id)
+    if not comment:
+        return jsonify({'error': 'Comment not found'}), 404
+
+    if comment.is_approved:
+        return jsonify({'error': 'Cannot edit approved comment'}), 403
+
+    if comment.edit_token != edit_token:
+        return jsonify({'error': 'Invalid token'}), 403
+
+    comment.content = new_content
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Comment updated',
+        'comment': {'id': comment.id, 'content': comment.content}
+    }), 200
+    
+    
 @app.route('/api/posts/<slug>/comments', methods=['POST'])
 def add_comment(slug):
     post = Post.query.filter_by(slug=slug).first()
@@ -266,52 +314,54 @@ def add_comment(slug):
     db.session.commit()
     return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
 
+import uuid
+
+import uuid
+
 @app.route('/api/comments', methods=['POST'])
 def add_comment_by_id():
     try:
         data = request.get_json()
-        print("🔍 Received comment data:", data)  # ✅ यह Render Logs में दिखेगा
-        
-        # ✅ post_id को Integer में बदलें (भले ही String आए)
         post_id = data.get('post_id')
-        if post_id is None:
-            return jsonify({'error': 'Post ID is required'}), 400
-        
-        # ✅ इसे Integer में बदलें
-        try:
-            post_id = int(post_id)
-        except (ValueError, TypeError):
-            return jsonify({'error': 'Invalid Post ID format'}), 400
-        
+        if not post_id:
+            return jsonify({'error': 'Post ID required'}), 400
+        post_id = int(post_id)
+
         author_name = data.get('author_name', '').strip()
         author_email = data.get('author_email', '').strip()
         content = data.get('content', '').strip()
-        
+
         if not author_name or not content:
-            return jsonify({'error': 'Name and comment are required'}), 400
-        
-        # ✅ Database से Post ढूंढें
+            return jsonify({'error': 'Name and comment required'}), 400
+
         post = Post.query.get(post_id)
         if not post:
-            print(f"❌ Post with ID {post_id} not found!")  # ✅ Log में डालेगा
             return jsonify({'error': 'Post not found'}), 404
-        
+
+        edit_token = str(uuid.uuid4())
+
         comment = Comment(
             post_id=post.id,
             author_name=author_name,
             author_email=author_email,
             content=content,
-            is_approved=False
+            is_approved=False,
+            edit_token=edit_token
         )
         db.session.add(comment)
         db.session.commit()
-        print(f"✅ Comment added for post ID: {post.id}")  # ✅ Success Log
-        return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
-        
+
+        return jsonify({
+            'message': 'Comment added!',
+            'comment': {
+                'id': comment.id,
+                'edit_token': edit_token
+            }
+        }), 201
+
     except Exception as e:
-        print(f"🔥 Server Error: {str(e)}")  # ✅ कोई और Error आए तो Log में दिखे
         db.session.rollback()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 # ---------- Admin Panel Routes ----------
 @app.route('/admin/login', methods=['GET', 'POST'])

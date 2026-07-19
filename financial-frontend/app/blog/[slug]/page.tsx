@@ -1,10 +1,11 @@
 import { getPostBySlug, getAllPosts } from '@/lib/api';
 import Link from 'next/link';
-import Image from 'next/image'; // ✅ Import Image
+import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ShareButtons from '@/components/ShareButtons';
 import { getImageUrl } from '@/lib/utils';
+import CommentSection from '@/components/CommentSection';
 
 // ---------- Helpers ----------
 function getReadingTime(content: string) {
@@ -127,7 +128,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   let relatedPosts: PostType[] = [];
   if (post.category) {
     const allPosts = await getAllPosts();
-    // ✅ यह Type Guard null/undefined को हटाता है और TypeScript को बताता है कि अब p safe है
     const isPost = (p: any): p is PostType => p !== null && p !== undefined;
     relatedPosts = allPosts
       .filter(isPost)
@@ -172,14 +172,14 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             <span className="text-gray-700 font-medium">{post.title}</span>
           </nav>
 
-          {/* ✅ Optimized Image with next/image */}
+          {/* Featured Image */}
           {post.featured_image && (
             <div className="relative w-full h-64 md:h-80 mb-6">
               <Image
                 src={getImageUrl(post.featured_image)}
                 alt={post.title}
                 fill
-                priority={true} // ✅ मुख्य इमेज को Priority दें (LCP)
+                priority={true}
                 className="object-cover rounded-lg shadow-sm"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
@@ -227,6 +227,14 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
               </div>
             </div>
           )}
+
+          {/* ✅ Comments Section – अब यहाँ आएगा */}
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">💬 Join the Discussion</h2>
+            <p className="text-sm text-gray-500 mb-6">Share your thoughts, ask questions, or leave feedback.</p>
+            <CommentSection slug={post.slug} />
+          </div>
+
         </article>
       </main>
       <Footer />

@@ -7,7 +7,6 @@ import { FaBars, FaTimes } from 'react-icons/fa';
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
 
-  // ✅ मेनू टॉगल करने का Function
   const toggleMenu = () => setIsOpen(!isOpen);
   const closeMenu = () => setIsOpen(false);
 
@@ -26,17 +25,25 @@ export default function Header() {
             <Link href="/category/personal-finance" className="text-gray-700 hover:text-blue-700 transition">Personal Finance</Link>
             <Link href="/category/government-schemes" className="text-gray-700 hover:text-blue-700 transition">Govt Schemes</Link>
             <Link href="/tools/emi-calculator" className="text-gray-700 hover:text-blue-700 transition">Calculators</Link>
+            <Link href="/about" className="text-gray-700 hover:text-blue-700 transition">About</Link>
+            <Link href="/author" className="text-gray-700 hover:text-blue-700 transition">Author</Link>
+            <Link href="/contact" className="text-gray-700 hover:text-blue-700 transition">Contact</Link>
           </nav>
 
-          {/* ✅ Mobile Menu Toggle Button – Accessibility Fix */}
+          {/* Mobile Menu Toggle Button */}
           <button
             className="md:hidden text-gray-700 text-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-1.5 transition"
             onClick={toggleMenu}
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-menu"
+            title={isOpen ? "Close menu" : "Open menu"}
           >
-            {isOpen ? <FaTimes /> : <FaBars />}
+            {isOpen ? (
+              <FaTimes aria-hidden="true" />
+            ) : (
+              <FaBars aria-hidden="true" />
+            )}
           </button>
         </div>
 
@@ -71,6 +78,27 @@ export default function Header() {
                 onClick={closeMenu}
               >
                 Calculators
+              </Link>
+              <Link
+                href="/about"
+                className="text-gray-700 hover:text-blue-700 transition px-2 py-1 rounded hover:bg-gray-50"
+                onClick={closeMenu}
+              >
+                About
+              </Link>
+              <Link
+                href="/author"
+                className="text-gray-700 hover:text-blue-700 transition px-2 py-1 rounded hover:bg-gray-50"
+                onClick={closeMenu}
+              >
+                Author
+              </Link>
+              <Link
+                href="/contact"
+                className="text-gray-700 hover:text-blue-700 transition px-2 py-1 rounded hover:bg-gray-50"
+                onClick={closeMenu}
+              >
+                Contact
               </Link>
             </nav>
           </div>

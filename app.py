@@ -387,16 +387,22 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    # ✅ सारे Posts लाएं
+    # ✅ 1. Posts – हमेशा काम करेगा
     posts = Post.query.order_by(Post.created_at.desc()).all()
     
-    # ✅ Comments लाएं (सबसे नए पहले) – Comments Tab के लिए
-    comments = Comment.query.order_by(Comment.created_at.desc()).all()
+    # ✅ 2. Comments – अगर Column missing है तो भी Dashboard Crash नहीं होगा
+    comments = []
+    pending_comments_count = 0
+    try:
+        comments = Comment.query.order_by(Comment.created_at.desc()).all()
+        pending_comments_count = Comment.query.filter_by(is_approved=False).count()
+    except Exception as e:
+        print(f"⚠️ Comment query error (migration pending?): {e}")
+        # अगर Column missing है, तो बस Empty List भेज दो, Dashboard चलता रहेगा
+        comments = []
+        pending_comments_count = 0
     
-    # ✅ Pending Comments Count – Dashboard Card के लिए
-    pending_comments_count = Comment.query.filter_by(is_approved=False).count()
-    
-    # ✅ Stats
+    # ✅ 3. Stats
     total_posts = Post.query.count()
     draft_posts = Post.query.filter_by(status='draft').count()
     published_posts = Post.query.filter_by(status='published').count()
@@ -405,8 +411,8 @@ def admin_dashboard():
     
     return render_template('admin/index.html',
                            posts=posts,
-                           comments=comments,                           # ✅ नया
-                           pending_comments_count=pending_comments_count, # ✅ नया
+                           comments=comments,
+                           pending_comments_count=pending_comments_count,
                            total_posts=total_posts,
                            draft_posts=draft_posts,
                            published_posts=published_posts,

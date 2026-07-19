@@ -66,6 +66,12 @@ class Category(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     slug = db.Column(db.String(100), unique=True, nullable=False)
 
+# ✅ Many-to-Many Association Table (Post ↔ Category)
+post_category = db.Table('post_category',
+    db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
+    db.Column('category_id', db.Integer, db.ForeignKey('category.id'), primary_key=True)
+)
+
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -78,8 +84,9 @@ class Post(db.Model):
     views = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
-    category = db.relationship('Category', backref='posts')
+    # ✅ REMOVED: category_id and category relationship
+    # ✅ NEW: Many-to-Many relationship
+    categories = db.relationship('Category', secondary=post_category, backref=db.backref('posts', lazy='dynamic'))
 
 class Setting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -87,7 +94,6 @@ class Setting(db.Model):
     value = db.Column(db.Text, nullable=True)
     description = db.Column(db.String(200))
 
-# ✅ NEW: Comment Model
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
@@ -128,10 +134,13 @@ def login_required(f):
 def get_posts():
     category_slug = request.args.get('category')
     query = Post.query.filter_by(status='published')
+    
     if category_slug:
         category = Category.query.filter_by(slug=category_slug).first()
         if category:
-            query = query.filter_by(category_id=category.id)
+            # ✅ Filter by many-to-many categories
+            query = query.filter(Post.categories.contains(category))
+    
     posts = query.order_by(Post.created_at.desc()).all()
     return jsonify([{
         'id': p.id,
@@ -141,7 +150,7 @@ def get_posts():
         'meta_title': p.meta_title,
         'meta_description': p.meta_description,
         'featured_image': p.featured_image,
-        'category': p.category.name if p.category else None,
+        'categories': [cat.name for cat in p.categories],  # ✅ Array of category names
         'created_at': p.created_at.strftime('%d %b, %Y')
     } for p in posts])
 
@@ -158,7 +167,7 @@ def get_post(slug):
         'meta_title': post.meta_title,
         'meta_description': post.meta_description,
         'featured_image': post.featured_image,
-        'category': post.category.name if post.category else None,
+        'categories': [cat.name for cat in post.categories],  # ✅ Array
         'created_at': post.created_at.strftime('%d %b, %Y')
     })
 
@@ -172,6 +181,41 @@ def get_categories():
         'slug': c.slug
     } for c in categories])
 
+# ✅ ADMIN CATEGORY ROUTES (ALREADY PRESENT, KEEP THEM)
+@app.route('/admin/categories')
+@login_required
+def admin_categories():
+    categories = Category.query.all()
+    return render_template('admin/categories.html', categories=categories)
+
+@app.route('/admin/category/new', methods=['GET', 'POST'])
+@login_required
+def admin_new_category():
+    if request.method == 'POST':
+        name = request.form['name']
+        slug = request.form['slug'] or name.lower().replace(' ', '-')
+        if Category.query.filter_by(slug=slug).first():
+            flash('यह Slug पहले से मौजूद है!', 'danger')
+            return render_template('admin/category_form.html')
+        category = Category(name=name, slug=slug)
+        db.session.add(category)
+        db.session.commit()
+        flash('✅ कैटेगरी बन गई!', 'success')
+        return redirect(url_for('admin_categories'))
+    return render_template('admin/category_form.html', category=None)
+
+@app.route('/admin/category/<int:id>/delete')
+@login_required
+def admin_delete_category(id):
+    category = Category.query.get_or_404(id)
+    # ✅ Check if any post has this category
+    if category.posts.count() > 0:
+        flash('❌ इस कैटेगरी में पोस्ट्स हैं, पहले उन्हें हटाएं या बदलें!', 'danger')
+        return redirect(url_for('admin_categories'))
+    db.session.delete(category)
+    db.session.commit()
+    flash('🗑️ कैटेगरी डिलीट हो गई!', 'success')
+    return redirect(url_for('admin_categories'))
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
@@ -182,11 +226,9 @@ def get_settings():
 # ---------- Comments API ----------
 @app.route('/api/posts/<slug>/comments', methods=['GET'])
 def get_comments(slug):
-    """Get all approved comments for a post"""
     post = Post.query.filter_by(slug=slug).first()
     if not post:
         return jsonify({'error': 'Post not found'}), 404
-    
     comments = Comment.query.filter_by(post_id=post.id, is_approved=True).order_by(Comment.created_at.asc()).all()
     return jsonify([{
         'id': c.id,
@@ -198,19 +240,15 @@ def get_comments(slug):
 
 @app.route('/api/posts/<slug>/comments', methods=['POST'])
 def add_comment(slug):
-    """Add a new comment (pending approval)"""
     post = Post.query.filter_by(slug=slug).first()
     if not post:
         return jsonify({'error': 'Post not found'}), 404
-    
     data = request.get_json()
     author_name = data.get('author_name', '').strip()
     author_email = data.get('author_email', '').strip()
     content = data.get('content', '').strip()
-    
     if not author_name or not content:
         return jsonify({'error': 'Name and Comment are required'}), 400
-    
     comment = Comment(
         post_id=post.id,
         author_name=author_name,
@@ -220,7 +258,6 @@ def add_comment(slug):
     )
     db.session.add(comment)
     db.session.commit()
-    
     return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
 
 
@@ -273,8 +310,10 @@ def admin_new_post():
         meta_title = request.form.get('meta_title', '')
         meta_description = request.form.get('meta_description', '')
         featured_image = request.form.get('featured_image', '')
-        category_id = request.form.get('category_id')
         slug = request.form.get('slug', '').strip()
+        # ✅ Get multiple categories from form
+        category_ids = request.form.getlist('categories')  # list of strings
+        
         if not slug:
             slug = generate_unique_slug(title)
         else:
@@ -289,8 +328,13 @@ def admin_new_post():
                 meta_title=meta_title,
                 meta_description=meta_description,
                 featured_image=featured_image,
-                category_id=category_id if category_id else None
+                status='draft'  # default
             )
+            # ✅ Add selected categories
+            if category_ids:
+                selected_categories = Category.query.filter(Category.id.in_(category_ids)).all()
+                post.categories = selected_categories
+            
             db.session.add(post)
             db.session.commit()
             flash('✅ पोस्ट सफलतापूर्वक सेव हो गई!', 'success')
@@ -314,7 +358,8 @@ def admin_edit_post(id):
         meta_title = request.form.get('meta_title', '')
         meta_description = request.form.get('meta_description', '')
         featured_image = request.form.get('featured_image', '')
-        category_id = request.form.get('category_id')
+        category_ids = request.form.getlist('categories')  # ✅ list of category ids
+        
         if not slug:
             slug = generate_unique_slug(title)
         else:
@@ -322,13 +367,20 @@ def admin_edit_post(id):
             if existing and existing.id != id:
                 flash('❌ यह Slug (URL) किसी दूसरी पोस्ट में पहले से मौजूद है!', 'danger')
                 return render_template('admin/post_form.html', categories=categories, post=post)
+        
         post.title = title
         post.slug = slug
         post.content = content
         post.meta_title = meta_title
         post.meta_description = meta_description
         post.featured_image = featured_image
-        post.category_id = category_id if category_id else None
+        
+        # ✅ Update many-to-many categories
+        post.categories.clear()  # Remove all existing
+        if category_ids:
+            selected_categories = Category.query.filter(Category.id.in_(category_ids)).all()
+            post.categories = selected_categories
+        
         try:
             db.session.commit()
             flash('✅ पोस्ट अपडेट हो गई!', 'success')
@@ -420,17 +472,10 @@ def admin_upload():
         try:
             cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
             upload_url = f'https://api.cloudinary.com/v1_1/{cloud_name}/upload'
-            
-            files = {
-                'file': (file.filename, file.stream, file.content_type)
-            }
-            data = {
-                'upload_preset': 'blog_unsigned'
-            }
-            
+            files = {'file': (file.filename, file.stream, file.content_type)}
+            data = {'upload_preset': 'blog_unsigned'}
             response = requests.post(upload_url, files=files, data=data)
             response_data = response.json()
-            
             if response.status_code == 200:
                 return jsonify({'location': response_data['secure_url']}), 200
             else:
@@ -455,7 +500,7 @@ def admin_export():
         'featured_image': p.featured_image,
         'status': p.status,
         'views': p.views,
-        'category': p.category.name if p.category else None,
+        'categories': [cat.name for cat in p.categories],  # ✅ list of names
         'created_at': p.created_at.isoformat(),
         'updated_at': p.updated_at.isoformat()
     } for p in posts]
@@ -489,24 +534,21 @@ def seed_db_route():
             admin = User(username='admin', password=generate_password_hash('admin123'))
             db.session.add(admin)
             db.session.commit()
-        
         if not Category.query.first():
             cat = Category(name='Personal Finance', slug='personal-finance')
             db.session.add(cat)
             db.session.commit()
-            
             post = Post(
                 title='बजट कैसे बनाएं?',
                 slug='budget-kaise-banaye',
                 content='<p>यह आपका पहला ब्लॉग पोस्ट है। यहाँ पूरा आर्टिकल आएगा।</p>',
                 meta_title='बजट बनाने का सही तरीका | Personal Finance',
                 meta_description='घर का बजट बनाना सीखें और पैसे बचाएं।',
-                category_id=cat.id,
                 status='published'
             )
+            post.categories = [cat]  # ✅ Many-to-Many
             db.session.add(post)
             db.session.commit()
-        
         return "✅ Seed completed! Admin (admin/admin123) and demo post created."
     except Exception as e:
         return f"❌ Error: {str(e)}"
@@ -529,9 +571,9 @@ def seed_db():
             content='<p>यह आपका पहला ब्लॉग पोस्ट है। यहाँ पूरा आर्टिकल आएगा।</p>',
             meta_title='बजट बनाने का सही तरीका | Personal Finance',
             meta_description='घर का बजट बनाना सीखें और पैसे बचाएं।',
-            category_id=cat.id,
             status='published'
         )
+        post.categories = [cat]
         db.session.add(post)
         db.session.commit()
         print("✅ डमी पोस्ट डाल दी गई!")

@@ -9,6 +9,7 @@
         .seo-counter .badge { font-size: 0.8rem; }
         .is-invalid { border-color: #dc3545; }
         .ql-editor { min-height: 300px; }
+        .category-select { min-height: 120px; }
     </style>
 </head>
 <body>
@@ -54,14 +55,21 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="card shadow-sm sticky-top" style="top: 20px;"><div class="card-header bg-light fw-bold">⚙️ Settings & SEO</div><div class="card-body">
+                        
+                        <!-- ✅ Multiple Categories Select -->
                         <div class="mb-3">
-                            <label>Category</label>
-                            <select name="category_id" class="form-select">
+                            <label>📂 Categories (Multiple)</label>
+                            <select name="categories" class="form-select category-select" multiple size="4">
                                 {% for cat in categories %}
-                                <option value="{{ cat.id }}" {% if post and post.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                <option value="{{ cat.id }}" 
+                                    {% if post and cat in post.categories %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
                                 {% endfor %}
                             </select>
+                            <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple.</small>
                         </div>
+
                         <div class="mb-3">
                             <label>📸 Featured Image</label>
                             <div class="input-group mb-2">

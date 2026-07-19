@@ -262,6 +262,33 @@ def add_comment(slug):
     db.session.commit()
     return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
 
+@app.route('/api/comments', methods=['POST'])
+def add_comment_by_id():
+    data = request.get_json()
+    post_id = data.get('post_id')
+    author_name = data.get('author_name', '').strip()
+    author_email = data.get('author_email', '').strip()
+    content = data.get('content', '').strip()
+    
+    if not post_id:
+        return jsonify({'error': 'Post ID required'}), 400
+    if not author_name or not content:
+        return jsonify({'error': 'Name and comment required'}), 400
+    
+    post = Post.query.get(post_id)
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    comment = Comment(
+        post_id=post.id,
+        author_name=author_name,
+        author_email=author_email,
+        content=content,
+        is_approved=False
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({'message': 'Comment added! It will appear after approval.'}), 201
 
 # ---------- Admin Panel Routes ----------
 @app.route('/admin/login', methods=['GET', 'POST'])

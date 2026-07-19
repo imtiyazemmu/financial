@@ -387,36 +387,42 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    # ✅ 1. Posts
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    
-    # ✅ 2. Comments (सुरक्षित रूप से Fetch करें – अगर Table/Column Missing है तो भी Crash नहीं होगा)
-    comments = []
-    pending_comments_count = 0
     try:
-        comments = Comment.query.order_by(Comment.created_at.desc()).all()
-        pending_comments_count = Comment.query.filter_by(is_approved=False).count()
-    except Exception as e:
-        print(f"⚠️ Comment query error: {e}")
+        # ✅ 1. Posts
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+        
+        # ✅ 2. Comments
         comments = []
         pending_comments_count = 0
-    
-    # ✅ 3. Stats
-    total_posts = Post.query.count()
-    draft_posts = Post.query.filter_by(status='draft').count()
-    published_posts = Post.query.filter_by(status='published').count()
-    total_categories = Category.query.count()
-    total_views = db.session.query(db.func.sum(Post.views)).scalar() or 0
-    
-    return render_template('admin/index.html',
-                           posts=posts,
-                           comments=comments,                           # ✅ Comments List
-                           pending_comments_count=pending_comments_count, # ✅ Pending Count
-                           total_posts=total_posts,
-                           draft_posts=draft_posts,
-                           published_posts=published_posts,
-                           total_categories=total_categories,
-                           total_views=total_views)
+        try:
+            comments = Comment.query.order_by(Comment.created_at.desc()).all()
+            pending_comments_count = Comment.query.filter_by(is_approved=False).count()
+        except Exception as e:
+            print(f"⚠️ Comment query error: {e}")
+            db.session.rollback()  # ✅ Transaction को Rollback करें
+            comments = []
+            pending_comments_count = 0
+        
+        # ✅ 3. Stats
+        total_posts = Post.query.count()
+        draft_posts = Post.query.filter_by(status='draft').count()
+        published_posts = Post.query.filter_by(status='published').count()
+        total_categories = Category.query.count()
+        total_views = db.session.query(db.func.sum(Post.views)).scalar() or 0
+        
+        return render_template('admin/index.html',
+                               posts=posts,
+                               comments=comments,
+                               pending_comments_count=pending_comments_count,
+                               total_posts=total_posts,
+                               draft_posts=draft_posts,
+                               published_posts=published_posts,
+                               total_categories=total_categories,
+                               total_views=total_views)
+    except Exception as e:
+        db.session.rollback()  # ✅ किसी भी और Error पर भी Rollback
+        flash(f'❌ Error loading dashboard: {str(e)}', 'danger')
+        return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/post/new', methods=['GET', 'POST'])

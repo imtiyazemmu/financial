@@ -3,12 +3,39 @@
 <head>
     <title>{% if post %}Edit{% else %}New{% endif %} Post</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- ✅ Quill Core -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    
+    <!-- ✅ Quill Table UI (Tables के लिए) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-ui@1.0.3/dist/quill-table-ui.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/quill-table-ui@1.0.3/dist/quill-table-ui.min.js"></script>
+    
     <style>
         .seo-counter .badge { font-size: 0.8rem; }
-        .ql-editor { min-height: 300px; }
-        .category-checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 0.375rem; padding: 10px; background: #f8f9fa; }
+        .ql-editor { min-height: 400px; font-size: 16px; }
+        .category-checkbox-list { 
+            max-height: 150px; 
+            overflow-y: auto; 
+            border: 1px solid #ced4da; 
+            border-radius: 0.375rem; 
+            padding: 10px; 
+            background: #f8f9fa; 
+        }
+        /* Quill Table UI styling fix */
+        .ql-table-actions {
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .ql-table-actions button {
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -48,7 +75,7 @@
                         <div class="mb-3">
                             <label>Content *</label>
                             <textarea id="content" name="content" style="display:none;"></textarea>
-                            <div id="editor-container" style="height: 400px; background: white; border: 1px solid #ced4da; border-radius: 0.375rem;"></div>
+                            <div id="editor-container" style="height: 450px; background: white; border: 1px solid #ced4da; border-radius: 0.375rem;"></div>
                         </div>
                     </div></div>
                 </div>
@@ -102,25 +129,50 @@
         </form>
     </div>
     <script>
-        // Quill Editor
+        // ✅ Register Quill Table UI module
+        if (typeof QuillTableUI !== 'undefined') {
+            Quill.register('modules/tableUI', QuillTableUI);
+        }
+
+        // ✅ Quill Editor Initialize with FULL TOOLBAR (Color, Background, Table, Alignment, Fonts)
         var quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: {
+                table: true,
+                tableUI: true,
                 toolbar: [
-                    [{'header': [1, 2, 3, 4, false]}],
+                    // 1. Headers
+                    [{ 'header': [1, 2, 3, 4, false] }],
+                    // 2. Text Styles: Bold, Italic, Underline, Strike, Color, Background
                     ['bold', 'italic', 'underline', 'strike'],
-                    [{'list': 'ordered'}, {'list': 'bullet'}],
-                    ['link', 'image', 'code-block'],
+                    [{ 'color': [] }, { 'background': [] }],
+                    // 3. Font & Size (Optional but helpful)
+                    [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+                    // 4. Alignment
+                    [{ 'align': [] }],
+                    // 5. Lists
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
+                    // 6. Indent / Outdent
+                    [{ 'indent': '-1' }, { 'indent': '+1' }],
+                    // 7. Blockquote, Code-block
+                    ['blockquote', 'code-block'],
+                    // 8. Links, Images, Videos
+                    ['link', 'image', 'video'],
+                    // 9. TABLE (Insert Table / Rows / Columns)
+                    ['table'],
+                    // 10. Clean formatting
                     ['clean']
                 ]
             },
-            placeholder: 'Write your financial tips here...'
+            placeholder: 'Write your financial tips here... Use Color, Tables, and Fonts!'
         });
 
+        // ✅ Post Content Set करें (Edit Mode में)
         {% if post and post.content %}
             quill.clipboard.dangerouslyPasteHTML({{ post.content | tojson | safe }});
         {% endif %}
 
+        // ✅ Form Submit होने पर Content को Textarea में डालें
         const form = document.getElementById('postForm');
         const hiddenContent = document.getElementById('content');
         form.addEventListener('submit', function(e) {
@@ -133,6 +185,7 @@
             return true;
         });
 
+        // ✅ Slug Generator
         function generateSlugFromTitle() {
             let title = document.getElementById('title').value;
             let slugField = document.getElementById('slug');
@@ -145,6 +198,7 @@
             this.dataset.edited = 'true';
         });
 
+        // ✅ Image Upload (AJAX)
         document.getElementById('image_upload').addEventListener('change', function(e) {
             const file = this.files[0];
             if (!file) return;
@@ -162,6 +216,7 @@
             }).catch(() => alert('Error uploading image'));
         });
 
+        // ✅ Live SEO Counter
         function updateSeoCounts() {
             const title = document.getElementById('meta_title').value;
             const desc = document.getElementById('meta_description').value;

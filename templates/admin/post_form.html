@@ -8,13 +8,24 @@
     <style>
         .seo-counter .badge { font-size: 0.8rem; }
         .ql-editor { min-height: 400px; font-size: 16px; }
-        .ql-editor blockquote { border-left: 4px solid #ccc; padding-left: 16px; }
         .category-checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 0.375rem; padding: 10px; background: #f8f9fa; }
-        /* Table styling */
-        .ql-editor table { border-collapse: collapse; width: 100%; }
-        .ql-editor table td, .ql-editor table th { border: 1px solid #ccc; padding: 6px 10px; }
-        /* Code block styling */
-        .ql-editor pre.ql-syntax { background: #f4f4f4; padding: 12px; border-radius: 4px; overflow-x: auto; }
+        /* ✅ Custom Insert HTML Button */
+        .ql-html-btn {
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 4px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ql-html-btn:hover {
+            background: #e9ecef;
+            border-color: #a0aec0;
+        }
+        .ql-html-btn:active {
+            background: #dee2e6;
+        }
     </style>
 </head>
 <body>
@@ -55,6 +66,11 @@
                             <label>Content *</label>
                             <textarea id="content" name="content" style="display:none;"></textarea>
                             <div id="editor-container" style="height: 450px; background: white; border: 1px solid #ced4da; border-radius: 0.375rem;"></div>
+                            <!-- ✅ Insert HTML Button – Editor के नीचे -->
+                            <div class="mt-2">
+                                <button type="button" class="ql-html-btn" onclick="insertHTML()">📄 Insert HTML (Table/Div)</button>
+                                <small class="text-muted ms-2">Paste raw HTML to render as table or custom layout.</small>
+                            </div>
                         </div>
                     </div></div>
                 </div>
@@ -114,30 +130,19 @@
     </template>
 
     <script>
-        // ✅ FULL TOOLBAR – लगभग सभी Quill Tools
+        // ✅ FULL TOOLBAR – सभी Quill Tools
         var toolbarOptions = [
-            // 1. Headers
             [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            // 2. Text Formatting
             ['bold', 'italic', 'underline', 'strike'],
-            // 3. Colors
             [{ 'color': [] }, { 'background': [] }],
-            // 4. Font & Size
             [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
-            // 5. Text Alignment
             [{ 'align': [] }],
-            // 6. Lists
             [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
-            // 7. Indent / Outdent
             [{ 'indent': '-1' }, { 'indent': '+1' }],
-            // 8. Text Direction (RTL/LTR)
             [{ 'direction': 'rtl' }],
-            // 9. Blockquote, Code Block, Script
             ['blockquote', 'code-block'],
             [{ 'script': 'sub' }, { 'script': 'super' }],
-            // 10. Links, Images, Videos, Formulas
             ['link', 'image', 'video', 'formula'],
-            // 11. Clean formatting
             ['clean']
         ];
 
@@ -146,18 +151,29 @@
             theme: 'snow',
             modules: {
                 toolbar: toolbarOptions,
-                history: { delay: 2000, maxStack: 100, userOnly: true } // Undo/Redo
+                history: { delay: 2000, maxStack: 100, userOnly: true }
             },
-            placeholder: 'Write your financial tips here... Use Colors, Tables, Lists, and more!'
+            placeholder: 'Write your financial tips here...'
         });
 
-        // ✅ SAFE LOAD: Template से Content निकालकर Editor में डालें
+        // ✅ SAFE LOAD: Template से Content निकालें
         var contentTemplate = document.getElementById('editor-content-template');
         if (contentTemplate && contentTemplate.innerHTML.trim() && contentTemplate.innerHTML !== 'None') {
             quill.clipboard.dangerouslyPasteHTML(contentTemplate.innerHTML);
         }
 
-        // ✅ Form Submit
+        // ✅ Custom Function: Insert HTML Directly
+        function insertHTML() {
+            var html = prompt('📄 Paste your HTML code here (Table, Div, custom layout):');
+            if (html && html.trim()) {
+                var range = quill.getSelection(true);
+                quill.clipboard.dangerouslyPasteHTML(range.index, html);
+            } else {
+                alert('No HTML code entered.');
+            }
+        }
+
+        // ✅ Form Submit – Content को Textarea में डालें
         var form = document.getElementById('postForm');
         var hiddenContent = document.getElementById('content');
         form.addEventListener('submit', function(e) {
@@ -201,7 +217,7 @@
             }).catch(function() { alert('Error uploading image'); });
         });
 
-        // ✅ Live SEO Counter
+        // ✅ SEO Counter
         function updateSeoCounts() {
             var title = document.getElementById('meta_title').value;
             var desc = document.getElementById('meta_description').value;

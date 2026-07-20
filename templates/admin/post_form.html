@@ -3,38 +3,18 @@
 <head>
     <title>{% if post %}Edit{% else %}New{% endif %} Post</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- ✅ Quill Core -->
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-    
-    <!-- ✅ Quill Table UI (Tables के लिए) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill-table-ui@1.0.3/dist/quill-table-ui.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/quill-table-ui@1.0.3/dist/quill-table-ui.min.js"></script>
-    
     <style>
         .seo-counter .badge { font-size: 0.8rem; }
         .ql-editor { min-height: 400px; font-size: 16px; }
-        .category-checkbox-list { 
-            max-height: 150px; 
-            overflow-y: auto; 
-            border: 1px solid #ced4da; 
-            border-radius: 0.375rem; 
-            padding: 10px; 
-            background: #f8f9fa; 
-        }
-        .ql-table-actions {
-            background: #f8f9fa;
-            padding: 4px;
-            border-radius: 4px;
-        }
-        .ql-table-actions button {
-            border: 1px solid #ccc;
-            background: white;
-            border-radius: 3px;
-            padding: 2px 6px;
-            font-size: 12px;
-        }
+        .ql-editor blockquote { border-left: 4px solid #ccc; padding-left: 16px; }
+        .category-checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #ced4da; border-radius: 0.375rem; padding: 10px; background: #f8f9fa; }
+        /* Table styling */
+        .ql-editor table { border-collapse: collapse; width: 100%; }
+        .ql-editor table td, .ql-editor table th { border: 1px solid #ccc; padding: 6px 10px; }
+        /* Code block styling */
+        .ql-editor pre.ql-syntax { background: #f4f4f4; padding: 12px; border-radius: 4px; overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -81,7 +61,7 @@
                 <div class="col-lg-4">
                     <div class="card shadow-sm sticky-top" style="top: 20px;"><div class="card-header bg-light fw-bold">⚙️ Settings & SEO</div><div class="card-body">
                         
-                        <!-- ✅ Multiple Categories as CHECKBOXES -->
+                        <!-- Multiple Categories as CHECKBOXES -->
                         <div class="mb-3">
                             <label>📂 Select Categories</label>
                             <div class="category-checkbox-list">
@@ -128,50 +108,58 @@
         </form>
     </div>
 
-    <!-- ✅ SAFE CONTENT HOLDER – जो JavaScript को तोड़े नहीं -->
+    <!-- ✅ SAFE CONTENT HOLDER – Data कभी गायब नहीं होगा -->
     <template id="editor-content-template" style="display:none;">
         {% if post and post.content %}{{ post.content | safe }}{% endif %}
     </template>
 
     <script>
-        // ✅ Register Quill Table UI module
-        if (typeof QuillTableUI !== 'undefined') {
-            Quill.register('modules/tableUI', QuillTableUI);
-        }
+        // ✅ FULL TOOLBAR – लगभग सभी Quill Tools
+        var toolbarOptions = [
+            // 1. Headers
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            // 2. Text Formatting
+            ['bold', 'italic', 'underline', 'strike'],
+            // 3. Colors
+            [{ 'color': [] }, { 'background': [] }],
+            // 4. Font & Size
+            [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
+            // 5. Text Alignment
+            [{ 'align': [] }],
+            // 6. Lists
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
+            // 7. Indent / Outdent
+            [{ 'indent': '-1' }, { 'indent': '+1' }],
+            // 8. Text Direction (RTL/LTR)
+            [{ 'direction': 'rtl' }],
+            // 9. Blockquote, Code Block, Script
+            ['blockquote', 'code-block'],
+            [{ 'script': 'sub' }, { 'script': 'super' }],
+            // 10. Links, Images, Videos, Formulas
+            ['link', 'image', 'video', 'formula'],
+            // 11. Clean formatting
+            ['clean']
+        ];
 
-        // ✅ Quill Editor Initialize with FULL TOOLBAR
+        // ✅ Quill Editor Initialize
         var quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: {
-                table: true,
-                tableUI: true,
-                toolbar: [
-                    [{ 'header': [1, 2, 3, 4, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'color': [] }, { 'background': [] }],
-                    [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
-                    [{ 'align': [] }],
-                    [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
-                    [{ 'indent': '-1' }, { 'indent': '+1' }],
-                    ['blockquote', 'code-block'],
-                    ['link', 'image', 'video'],
-                    ['table'],
-                    ['clean']
-                ]
+                toolbar: toolbarOptions,
+                history: { delay: 2000, maxStack: 100, userOnly: true } // Undo/Redo
             },
-            placeholder: 'Write your financial tips here... Use Color, Tables, and Fonts!'
+            placeholder: 'Write your financial tips here... Use Colors, Tables, Lists, and more!'
         });
 
         // ✅ SAFE LOAD: Template से Content निकालकर Editor में डालें
-        const contentTemplate = document.getElementById('editor-content-template');
-        if (contentTemplate && contentTemplate.innerHTML.trim()) {
-            // ✅ Quill को Content सेट करें
+        var contentTemplate = document.getElementById('editor-content-template');
+        if (contentTemplate && contentTemplate.innerHTML.trim() && contentTemplate.innerHTML !== 'None') {
             quill.clipboard.dangerouslyPasteHTML(contentTemplate.innerHTML);
         }
 
-        // ✅ Form Submit होने पर Content को Textarea में डालें
-        const form = document.getElementById('postForm');
-        const hiddenContent = document.getElementById('content');
+        // ✅ Form Submit
+        var form = document.getElementById('postForm');
+        var hiddenContent = document.getElementById('content');
         form.addEventListener('submit', function(e) {
             hiddenContent.value = quill.root.innerHTML;
             if (!hiddenContent.value || hiddenContent.value === '<p><br></p>' || hiddenContent.value.trim() === '') {
@@ -184,10 +172,10 @@
 
         // ✅ Slug Generator
         function generateSlugFromTitle() {
-            let title = document.getElementById('title').value;
-            let slugField = document.getElementById('slug');
+            var title = document.getElementById('title').value;
+            var slugField = document.getElementById('slug');
             if (!slugField.value || slugField.dataset.edited !== 'true') {
-                let slug = title.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                var slug = title.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                 slugField.value = slug;
             }
         }
@@ -195,34 +183,34 @@
             this.dataset.edited = 'true';
         });
 
-        // ✅ Image Upload (AJAX)
+        // ✅ Image Upload
         document.getElementById('image_upload').addEventListener('change', function(e) {
-            const file = this.files[0];
+            var file = this.files[0];
             if (!file) return;
-            const formData = new FormData();
+            var formData = new FormData();
             formData.append('file', file);
             fetch('/admin/upload', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
                 if (data.location) {
                     document.getElementById('featured_image').value = data.location;
-                    document.getElementById('image_preview').innerHTML = `<img src="${data.location}" class="img-fluid rounded" style="max-height:100px;">`;
+                    document.getElementById('image_preview').innerHTML = '<img src="' + data.location + '" class="img-fluid rounded" style="max-height:100px;">';
                 } else {
                     alert('Upload failed: ' + (data.error || 'Unknown error'));
                 }
-            }).catch(() => alert('Error uploading image'));
+            }).catch(function() { alert('Error uploading image'); });
         });
 
         // ✅ Live SEO Counter
         function updateSeoCounts() {
-            const title = document.getElementById('meta_title').value;
-            const desc = document.getElementById('meta_description').value;
-            const tLen = title.length;
-            const dLen = desc.length;
-            document.getElementById('title_count').textContent = `${tLen}/60`;
-            document.getElementById('desc_count').textContent = `${dLen}/160`;
-            const tWarn = document.getElementById('title_warning');
-            const dWarn = document.getElementById('desc_warning');
+            var title = document.getElementById('meta_title').value;
+            var desc = document.getElementById('meta_description').value;
+            var tLen = title.length;
+            var dLen = desc.length;
+            document.getElementById('title_count').textContent = tLen + '/60';
+            document.getElementById('desc_count').textContent = dLen + '/160';
+            var tWarn = document.getElementById('title_warning');
+            var dWarn = document.getElementById('desc_warning');
             if (tLen > 60) { tWarn.innerText = '⚠️ Too long! (Max 60)'; } 
             else if (tLen < 30) { tWarn.innerText = '💡 Try 50-60 characters for best SEO.'; } 
             else { tWarn.innerText = '✅ Good!'; }

@@ -23,7 +23,6 @@
             padding: 10px; 
             background: #f8f9fa; 
         }
-        /* Quill Table UI styling fix */
         .ql-table-actions {
             background: #f8f9fa;
             padding: 4px;
@@ -128,49 +127,47 @@
             </div>
         </form>
     </div>
+
+    <!-- ✅ SAFE CONTENT HOLDER – जो JavaScript को तोड़े नहीं -->
+    <template id="editor-content-template" style="display:none;">
+        {% if post and post.content %}{{ post.content | safe }}{% endif %}
+    </template>
+
     <script>
         // ✅ Register Quill Table UI module
         if (typeof QuillTableUI !== 'undefined') {
             Quill.register('modules/tableUI', QuillTableUI);
         }
 
-        // ✅ Quill Editor Initialize with FULL TOOLBAR (Color, Background, Table, Alignment, Fonts)
+        // ✅ Quill Editor Initialize with FULL TOOLBAR
         var quill = new Quill('#editor-container', {
             theme: 'snow',
             modules: {
                 table: true,
                 tableUI: true,
                 toolbar: [
-                    // 1. Headers
                     [{ 'header': [1, 2, 3, 4, false] }],
-                    // 2. Text Styles: Bold, Italic, Underline, Strike, Color, Background
                     ['bold', 'italic', 'underline', 'strike'],
                     [{ 'color': [] }, { 'background': [] }],
-                    // 3. Font & Size (Optional but helpful)
                     [{ 'font': [] }, { 'size': ['small', false, 'large', 'huge'] }],
-                    // 4. Alignment
                     [{ 'align': [] }],
-                    // 5. Lists
                     [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
-                    // 6. Indent / Outdent
                     [{ 'indent': '-1' }, { 'indent': '+1' }],
-                    // 7. Blockquote, Code-block
                     ['blockquote', 'code-block'],
-                    // 8. Links, Images, Videos
                     ['link', 'image', 'video'],
-                    // 9. TABLE (Insert Table / Rows / Columns)
                     ['table'],
-                    // 10. Clean formatting
                     ['clean']
                 ]
             },
             placeholder: 'Write your financial tips here... Use Color, Tables, and Fonts!'
         });
 
-        // ✅ Post Content Set करें (Edit Mode में)
-        {% if post and post.content %}
-            quill.clipboard.dangerouslyPasteHTML({{ post.content | tojson | safe }});
-        {% endif %}
+        // ✅ SAFE LOAD: Template से Content निकालकर Editor में डालें
+        const contentTemplate = document.getElementById('editor-content-template');
+        if (contentTemplate && contentTemplate.innerHTML.trim()) {
+            // ✅ Quill को Content सेट करें
+            quill.clipboard.dangerouslyPasteHTML(contentTemplate.innerHTML);
+        }
 
         // ✅ Form Submit होने पर Content को Textarea में डालें
         const form = document.getElementById('postForm');

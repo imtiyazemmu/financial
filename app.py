@@ -430,14 +430,16 @@ def admin_dashboard():
 def admin_new_post():
     categories = Category.query.all()
     if request.method == 'POST':
+        db.session.rollback()  # ✅ अगर कोई पिछली Failed Transaction है तो Clear करें
+        
         title = request.form['title']
         content = request.form['content']
         meta_title = request.form.get('meta_title', '')
         meta_description = request.form.get('meta_description', '')
         featured_image = request.form.get('featured_image', '')
         slug = request.form.get('slug', '').strip()
-        # ✅ Get multiple categories from form
-        category_ids = request.form.getlist('categories')  # list of strings
+        status = request.form.get('status', 'draft')  # ✅ Status Form से लें
+        category_ids = request.form.getlist('categories')
         
         if not slug:
             slug = generate_unique_slug(title)
@@ -453,9 +455,8 @@ def admin_new_post():
                 meta_title=meta_title,
                 meta_description=meta_description,
                 featured_image=featured_image,
-                status='draft'  # default
+                status=status  # ✅ Dynamic Status
             )
-            # ✅ Add selected categories
             if category_ids:
                 selected_categories = Category.query.filter(Category.id.in_(category_ids)).all()
                 post.categories = selected_categories
@@ -477,13 +478,16 @@ def admin_edit_post(id):
     post = Post.query.get_or_404(id)
     categories = Category.query.all()
     if request.method == 'POST':
+        db.session.rollback()  # ✅ Failed Transaction Clear करें
+        
         title = request.form['title']
         slug = request.form.get('slug', '').strip()
         content = request.form['content']
         meta_title = request.form.get('meta_title', '')
         meta_description = request.form.get('meta_description', '')
         featured_image = request.form.get('featured_image', '')
-        category_ids = request.form.getlist('categories')  # ✅ list of category ids
+        status = request.form.get('status', 'draft')  # ✅ Status Form से लें
+        category_ids = request.form.getlist('categories')
         
         if not slug:
             slug = generate_unique_slug(title)
@@ -499,9 +503,9 @@ def admin_edit_post(id):
         post.meta_title = meta_title
         post.meta_description = meta_description
         post.featured_image = featured_image
+        post.status = status  # ✅ Status Update करें
         
-        # ✅ Update many-to-many categories
-        post.categories.clear()  # Remove all existing
+        post.categories.clear()
         if category_ids:
             selected_categories = Category.query.filter(Category.id.in_(category_ids)).all()
             post.categories = selected_categories
@@ -542,6 +546,7 @@ def admin_toggle_status(id):
 @app.route('/admin/bulk-action', methods=['POST'])
 @login_required
 def admin_bulk_action():
+    db.session.rollback()  # ✅ पहले Transaction Reset करें
     action = request.form.get('action')
     post_ids = request.form.getlist('post_ids')
     if not post_ids:
